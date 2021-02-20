@@ -149,9 +149,14 @@ contract ExchangeIssuance is ReentrancyGuard {
      *
      * @param _setToken    Address of the SetToken being initialized
      */
-    function approveSetToken(ISetToken _setToken) external {
+    function approveSetToken(ISetToken _setToken) isSetToken(_setToken) external {
         address[] memory components = _setToken.getComponents();
         for (uint256 i = 0; i < components.length; i++) {
+            // Check that the component does not have external positions
+            require(
+                _setToken.getExternalPositionModules(components[i]).length == 0,
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+            );
             approveToken(IERC20(components[i]));
         }
     }
