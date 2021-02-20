@@ -412,11 +412,19 @@ contract ExchangeIssuance is ReentrancyGuard {
             
             uint256 amountTokenOut;
             if (exchanges[i] == Exchange.Uniswap) {
+<<<<<<< HEAD
                 (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, components[i]);
                 amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             } else {
                 require(exchanges[i] == Exchange.Sushiswap, "ExchangeIssuance: Exchange not supported");
                 (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, components[i]);
+=======
+                (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, component);
+                amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
+            } else {
+                require(exchanges[i] == Exchange.Sushiswap);
+                (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, component);
+>>>>>>> Fix parameters passed to _getMaxTokenForExactToken in
                 amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             }
             
