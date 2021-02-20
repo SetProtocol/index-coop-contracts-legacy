@@ -697,6 +697,9 @@ contract ExchangeIssuance is ReentrancyGuard {
      * @return              The amount of output tokens
      */
     function _swapExactTokensForTokens(Exchange _exchange, address _tokenIn, address _tokenOut, uint256 _amountIn) internal returns (uint256) {
+        if (_tokenIn == _tokenOut) {
+            return _amountIn;
+        }
         address[] memory path = new address[](2);
         path[0] = _tokenIn;
         path[1] = _tokenOut;
@@ -713,6 +716,9 @@ contract ExchangeIssuance is ReentrancyGuard {
      * @return              The amount of input tokens spent
      */
     function _swapTokensForExactTokens(Exchange _exchange, address _tokenIn, address _tokenOut, uint256 _amountOut) internal returns (uint256) {
+        if (_tokenIn == _tokenOut) {
+            return _amountOut;
+        }
         address[] memory path = new address[](2);
         path[0] = _tokenIn;
         path[1] = _tokenOut;
@@ -730,6 +736,9 @@ contract ExchangeIssuance is ReentrancyGuard {
      * @return              The Exchange on which minimum amount of tokenA is required
      */
     function _getMinTokenForExactToken(uint256 _amountOut, address _tokenA, address _tokenB) internal view returns (uint256, Exchange) {
+        if (_tokenA == _tokenB) {
+            return (_amountOut, Exchange(-1));
+        }
         
         uint256 uniTokenIn = PreciseUnitMath.maxUint256();
         uint256 sushiTokenIn = PreciseUnitMath.maxUint256();
@@ -758,6 +767,9 @@ contract ExchangeIssuance is ReentrancyGuard {
      * @return              The Exchange on which maximum amount of token can be received
      */
     function _getMaxTokenForExactToken(uint256 _amountIn, address _tokenA, address _tokenB) internal view returns (uint256, Exchange) {
+        if (_tokenA == _tokenB) {
+            return (_amountIn, Exchange(-1));
+        }
         
         uint256 uniTokenOut = 0;
         uint256 sushiTokenOut = 0;
