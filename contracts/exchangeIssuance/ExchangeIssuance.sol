@@ -740,19 +740,28 @@ contract ExchangeIssuance is ReentrancyGuard {
             return (_amountOut, Exchange(-1));
         }
         
-        uint256 uniTokenIn = PreciseUnitMath.maxUint256();
-        uint256 sushiTokenIn = PreciseUnitMath.maxUint256();
+        uint256 maxIn = PreciseUnitMath.maxUint256() ; 
+        uint256 uniTokenIn = maxIn;
+        uint256 sushiTokenIn = maxIn;
         
         if (_pairAvailable(uniFactory, _tokenA, _tokenB)) {
             (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
-            uniTokenIn = UniswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+            // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
+            if(reserveOut > _amountOut) {
+                uniTokenIn = UniswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+            }
         }
         
         if (_pairAvailable(sushiFactory, _tokenA, _tokenB)) {
             (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
-            sushiTokenIn = SushiswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+            // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
+            if(reserveOut > _amountOut) {
+                sushiTokenIn = SushiswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+            }
         }
         
+        // Fails if both the values are max
+        require(!(uniTokenIn == maxIn && sushiTokenIn == maxIn), "ExchangeIssuance: ILLIQUID_SET_COMPONENT");
         return (uniTokenIn <= sushiTokenIn) ? (uniTokenIn, Exchange.Uniswap) : (sushiTokenIn, Exchange.Sushiswap);
     }
     
@@ -784,6 +793,8 @@ contract ExchangeIssuance is ReentrancyGuard {
             sushiTokenOut = SushiswapV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
         }
         
+        // Fails if both the values are 0
+        require(!(uniTokenOut == 0 && sushiTokenOut == 0), "ExchangeIssuance: ILLIQUID_SET_COMPONENT");
         return (uniTokenOut >= sushiTokenOut) ? (uniTokenOut, Exchange.Uniswap) : (sushiTokenOut, Exchange.Sushiswap); 
     }
     
