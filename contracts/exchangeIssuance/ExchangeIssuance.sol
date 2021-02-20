@@ -53,7 +53,10 @@ contract ExchangeIssuance is ReentrancyGuard {
 
     /* ============ Constants ============= */
 
+<<<<<<< HEAD
     uint256 constant private MAX_UINT96 = 2**96 - 1;
+=======
+>>>>>>> Make state varialbes public immutable
     address constant public ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     
     /* ============ State Variables ============ */
@@ -81,7 +84,7 @@ contract ExchangeIssuance is ReentrancyGuard {
     event ExchangeRedeem(
         address indexed _recipient,     // The recipient address which redeemed the SetTokens
         ISetToken indexed _setToken,    // The redeemed SetToken
-        IERC20 indexed _outputToken,    // The address of output asset(ERC20/ETH) received by the recipient
+        IERC20 indexed _outputToken,   // The addres of output asset(ERC20/ETH) received by the recipient
         uint256 _amountSetRedeemed,     // The amount of SetTokens redeemed for output tokens
         uint256 _amountOutputToken      // The amount of output tokens received by the recipient
     );
@@ -533,7 +536,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(components[i]).length == 0,
-                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             address token = components[i];
