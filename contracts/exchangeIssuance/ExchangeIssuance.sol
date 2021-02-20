@@ -377,7 +377,8 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         uint256 amountEth;
         if (address(_inputToken) != WETH) {
-            (amountEth, ) = _getMaxTokenForExactToken(_amountInput, address(WETH),  address(_inputToken));
+            // get max amount of WETH for the `_amountInput` amount of input tokens
+            (amountEth, ) = _getMaxTokenForExactToken(_amountInput, address(_inputToken), WETH);
         } else {
             amountEth = _amountInput;
         }
@@ -393,12 +394,12 @@ contract ExchangeIssuance is ReentrancyGuard {
             
             uint256 amountTokenOut;
             if (exchanges[i] == Exchange.Uniswap) {
-                (uint256 tokenReserveA, uint256 tokenReserveB) = UniswapV2Library.getReserves(uniFactory, WETH, component);
-                amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, tokenReserveA, tokenReserveB);
+                (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, component);
+                amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             } else {
                 require(exchanges[i] == Exchange.Sushiswap);
-                (uint256 tokenReserveA, uint256 tokenReserveB) = SushiswapV2Library.getReserves(sushiFactory, WETH, component);
-                amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, tokenReserveA, tokenReserveB);
+                (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, component);
+                amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             }
 
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(component));
@@ -730,20 +731,20 @@ contract ExchangeIssuance is ReentrancyGuard {
      */
     function _getMinTokenForExactToken(uint256 _amountOut, address _tokenA, address _tokenB) internal view returns (uint256, Exchange) {
         
-        uint256 uniEthIn = PreciseUnitMath.maxUint256();
-        uint256 sushiEthIn = PreciseUnitMath.maxUint256();
+        uint256 uniTokenIn = PreciseUnitMath.maxUint256();
+        uint256 sushiTokenIn = PreciseUnitMath.maxUint256();
         
         if (_pairAvailable(uniFactory, _tokenA, _tokenB)) {
-            (uint256 tokenReserveA, uint256 tokenReserveB) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
-            uniEthIn = UniswapV2Library.getAmountIn(_amountOut, tokenReserveA, tokenReserveB);
+            (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
+            uniTokenIn = UniswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
         }
         
         if (_pairAvailable(sushiFactory, _tokenA, _tokenB)) {
-            (uint256 tokenReserveA, uint256 tokenReserveB) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
-            sushiEthIn = SushiswapV2Library.getAmountIn(_amountOut, tokenReserveA, tokenReserveB);
+            (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
+            sushiTokenIn = SushiswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
         }
         
-        return (uniEthIn <= sushiEthIn) ? (uniEthIn, Exchange.Uniswap) : (sushiEthIn, Exchange.Sushiswap);
+        return (uniTokenIn <= sushiTokenIn) ? (uniTokenIn, Exchange.Uniswap) : (sushiTokenIn, Exchange.Sushiswap);
     }
     
     /**
@@ -762,13 +763,13 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 sushiTokenOut = 0;
         
         if(_pairAvailable(uniFactory, _tokenA, _tokenB)) {
-            (uint256 tokenReserveA, uint256 tokenReserveB) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
-            uniTokenOut = UniswapV2Library.getAmountOut(_amountIn, tokenReserveA, tokenReserveB);
+            (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
+            uniTokenOut = UniswapV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
         }
         
         if(_pairAvailable(sushiFactory, _tokenA, _tokenB)) {
-            (uint256 tokenReserveA, uint256 tokenReserveB) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
-            sushiTokenOut = SushiswapV2Library.getAmountOut(_amountIn, tokenReserveA, tokenReserveB);
+            (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
+            sushiTokenOut = SushiswapV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
         }
         
         return (uniTokenOut >= sushiTokenOut) ? (uniTokenOut, Exchange.Uniswap) : (sushiTokenOut, Exchange.Sushiswap); 
