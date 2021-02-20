@@ -244,7 +244,8 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 amountEthReturn = initETHAmount.sub(amountEthSpent);
         if (amountEthReturn > 0) {
             IWETH(WETH).withdraw(amountEthReturn);
-            msg.sender.transfer(amountEthReturn);
+            (bool sent, ) = msg.sender.call{value: amountEthReturn}("");
+            require(sent, "ExchangeIssuance: Failed to return Ether");
         }
         
         emit ExchangeIssue(msg.sender, _setToken, _inputToken, _maxAmountInputToken, _amountSetToken);
@@ -276,7 +277,8 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         if (returnAmount > 0) {
             IWETH(WETH).withdraw(returnAmount);
-            msg.sender.transfer(returnAmount);    
+            (bool sent, ) = msg.sender.call{value: returnAmount}("");
+            require(sent, "ExchangeIssuance: Failed to return Ether");
         }
         
         emit ExchangeIssue(msg.sender, _setToken, IERC20(ETH_ADDRESS), amountEth, _amountSetToken);
@@ -346,7 +348,8 @@ contract ExchangeIssuance is ReentrancyGuard {
         require(amountEthOut > _minETHReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
         IWETH(WETH).withdraw(amountEthOut);
-        msg.sender.transfer(amountEthOut);
+        (bool sent, ) = msg.sender.call{value: amountEthOut}("");
+        require(sent, "ExchangeIssuance: Failed to send Ether");
 
         emit ExchangeRedeem(msg.sender, _setToken, IERC20(ETH_ADDRESS), _amountSetToRedeem, amountEthOut);
     }
@@ -760,7 +763,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             }
         }
         
-        // Fails if both the values are max
+        // Fails if both the values are maxIn
         require(!(uniTokenIn == maxIn && sushiTokenIn == maxIn), "ExchangeIssuance: ILLIQUID_SET_COMPONENT");
         return (uniTokenIn <= sushiTokenIn) ? (uniTokenIn, Exchange.Uniswap) : (sushiTokenIn, Exchange.Sushiswap);
     }
