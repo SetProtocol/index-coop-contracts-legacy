@@ -762,11 +762,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             }
         }
         
-<<<<<<< HEAD
         // Fails if both the values are maxIn
-=======
-        // Fails if both the values are max
->>>>>>> Handle sets with illiquid components
         require(!(uniTokenIn == maxIn && sushiTokenIn == maxIn), "ExchangeIssuance: ILLIQUID_SET_COMPONENT");
         return (uniTokenIn <= sushiTokenIn) ? (uniTokenIn, Exchange.Uniswap) : (sushiTokenIn, Exchange.Sushiswap);
     }
