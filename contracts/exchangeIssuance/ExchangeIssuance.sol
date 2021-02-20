@@ -77,7 +77,7 @@ contract ExchangeIssuance is ReentrancyGuard {
     event ExchangeRedeem(
         address indexed _recipient,     // The recipient address which redeemed the SetTokens
         ISetToken indexed _setToken,    // The redeemed SetToken
-        IERC20 indexed _outputToken,   // The addres of output asset(ERC20/ETH) received by the recipient
+        IERC20 indexed _outputToken,    // The address of output asset(ERC20/ETH) received by the recipient
         uint256 _amountSetRedeemed,     // The amount of SetTokens redeemed for output tokens
         uint256 _amountOutputToken      // The amount of output tokens received by the recipient
     );
@@ -498,7 +498,7 @@ contract ExchangeIssuance is ReentrancyGuard {
     /* ============ Internal Functions ============ */
 
     /**
-     * Sets a max aproval limit for an ERC20 token, provided the current allowance is zero. 
+     * Sets a max approval limit for an ERC20 token, provided the current allowance is zero. 
      * 
      * @param _token    Token to approve
      * @param _spender  Spender address to approve
@@ -524,7 +524,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             address token = components[i];
@@ -579,7 +579,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
@@ -634,7 +634,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             // Get minimum amount of ETH to be spent to acquire the required amount of SetToken component
