@@ -53,10 +53,7 @@ contract ExchangeIssuance is ReentrancyGuard {
 
     /* ============ Constants ============= */
 
-<<<<<<< HEAD
     uint256 constant private MAX_UINT96 = 2**96 - 1;
-=======
->>>>>>> Make state varialbes public immutable
     address constant public ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     
     /* ============ State Variables ============ */
