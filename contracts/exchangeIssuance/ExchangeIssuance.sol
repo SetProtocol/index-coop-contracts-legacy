@@ -179,11 +179,11 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         _inputToken.safeTransferFrom(msg.sender, address(this), _amountInput);
         
-        if (address(_inputToken) != WETH) {
-           _swapTokenForWETH(_inputToken, _amountInput);
-        }
+        uint256 amountEth = address(_inputToken) == WETH
+            ? _amountInput
+            : _swapTokenForWETH(_inputToken, _amountInput);
 
-        uint256 setTokenAmount = _issueSetForExactWETH(_setToken, _minSetReceive);
+        uint256 setTokenAmount = _issueSetForExactWETH(_setToken, _minSetReceive, amountEth);
         
         emit ExchangeIssue(msg.sender, _setToken, _inputToken, _amountInput, setTokenAmount);
     }
@@ -207,7 +207,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         IWETH(WETH).deposit{value: msg.value}();
         
-        uint256 setTokenAmount = _issueSetForExactWETH(_setToken, _minSetReceive);
+        uint256 setTokenAmount = _issueSetForExactWETH(_setToken, _minSetReceive, msg.value);
         
         emit ExchangeIssue(msg.sender, _setToken, IERC20(ETH_ADDRESS), msg.value, setTokenAmount);
     }
@@ -539,14 +539,14 @@ contract ExchangeIssuance is ReentrancyGuard {
      * 
      * @param _setToken         Address of the SetToken being issued
      * @param _minSetReceive    Minimum amount of index to receive
+     * @param _wethAmount       Amount of WETH to be used to purchase the SetToken components
      * @return setTokenAmount   Amount of SetTokens issued
      */
-    function _issueSetForExactWETH(ISetToken _setToken, uint256 _minSetReceive) internal returns (uint256) {
-        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+    function _issueSetForExactWETH(ISetToken _setToken, uint256 _minSetReceive, uint256 _wethAmount) internal returns (uint256) {
         
         (uint256[] memory amountEthIn, Exchange[] memory exchanges, uint256 sumEth) = _getAmountETHForIssuance(_setToken);
 
-        uint256 setTokenAmount = _acquireComponents(_setToken, amountEthIn, exchanges, wethBalance, sumEth);
+        uint256 setTokenAmount = _acquireComponents(_setToken, amountEthIn, exchanges, _wethAmount, sumEth);
         
         require(setTokenAmount > _minSetReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
