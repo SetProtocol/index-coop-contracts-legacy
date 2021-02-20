@@ -440,6 +440,13 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         address[] memory components = _setToken.getComponents();
         for (uint256 i = 0; i < components.length; i++) {
+            
+            // Check that the component does not have external positions
+            require(
+                _setToken.getExternalPositionModules(components[i]).length == 0,
+                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+            );
+            
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
             uint256 amountToken = unit.preciseMul(_amountSetToken);
             
@@ -476,9 +483,16 @@ contract ExchangeIssuance is ReentrancyGuard {
     {
         require(_amountSetToRedeem > 0, "ExchangeIssuance: INVALID INPUTS");
         
-        address[] memory components = _setToken.getComponents();
         uint256 totalEth = 0;
+        address[] memory components = _setToken.getComponents();
         for (uint256 i = 0; i < components.length; i++) {
+            
+            // Check that the component does not have external positions
+            require(
+                _setToken.getExternalPositionModules(components[i]).length == 0,
+                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+            );
+            
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
             uint256 amount = unit.preciseMul(_amountSetToRedeem);
             
