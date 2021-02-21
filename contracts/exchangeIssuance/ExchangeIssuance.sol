@@ -251,7 +251,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             ? _maxAmountInputToken
             :  _swapTokenForWETH(_inputToken, _maxAmountInputToken);
         
-        uint256 amountEthSpent = _issueExactSetFromWETH(_setToken, _amountSetToken);
+        uint256 amountEthSpent = _issueExactSetFromWETH(_setToken, _amountSetToken, initETHAmount);
         
         uint256 amountEthReturn = initETHAmount.sub(amountEthSpent);
         if (amountEthReturn > 0) {
@@ -283,7 +283,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         IWETH(WETH).deposit{value: msg.value}();
         
-        uint256 amountEth = _issueExactSetFromWETH(_setToken, _amountSetToken);
+        uint256 amountEth = _issueExactSetFromWETH(_setToken, _amountSetToken, msg.value);
         
         uint256 returnAmount = msg.value.sub(amountEth);
         
@@ -570,7 +570,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             setTokenAmount = Math.min(amountTokenOut.preciseDiv(amountComponents[i]), setTokenAmount);
         }
         
-        require(setTokenAmount > _minSetReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(setTokenAmount >= _minSetReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
         basicIssuanceModule.issue(_setToken, setTokenAmount, msg.sender);
         return setTokenAmount;
@@ -582,32 +582,29 @@ contract ExchangeIssuance is ReentrancyGuard {
      * Uses the acquired components to issue the SetTokens.
      * 
      * @param _setToken          Address of the SetToken being issued
-     * @param _amountSetToken    Amount of SetTokens to issue
-     * @return sumEth            Total amount of ether used to acquire the SetToken components    
+     * @param _amountSetToken    Amount of SetTokens to be issued
+     * @param _maxEther          Max amount of ether that can be used to acquire the SetToken components
+     * @return totalEth          Total amount of ether used to acquire the SetToken components
      */
-    function _issueExactSetFromWETH(ISetToken _setToken, uint256 _amountSetToken) internal returns (uint256) {
-        
-        uint256 sumEth = 0;
+    function _issueExactSetFromWETH(ISetToken _setToken, uint256 _amountSetToken, uint256 _maxEther) internal returns (uint256) {
         
         address[] memory components = _setToken.getComponents();
+        (
+            uint256 sumEth,
+            , 
+            Exchange[] memory exchanges, 
+            uint256[] memory amountComponents
+        ) = _getAmountETHForIssuance(_setToken, components, _amountSetToken);
+        
+        require(sumEth <= _maxEther, "ExchangeIssuance: INSUFFICIENT_INPUT_AMOUNT");
+        
+        uint256 totalEth = 0;
         for (uint256 i = 0; i < components.length; i++) {
-            
-            // Check that the component does not have external positions
-            require(
-                _setToken.getExternalPositionModules(components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
-            );
-
-            uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
-            uint256 amountToken = uint256(unit).preciseMul(_amountSetToken);
-            
-            // Get minimum amount of ETH to be spent to acquire the required amount of SetToken component
-            (, Exchange exchange) = _getMinTokenForExactToken(amountToken, WETH, components[i]);
-            uint256 amountEth = _swapTokensForExactTokens(exchange, WETH, components[i], amountToken);
-            sumEth = sumEth.add(amountEth);
+            uint256 amountEth = _swapTokensForExactTokens(exchanges[i], WETH, components[i], amountComponents[i]);
+            totalEth = totalEth.add(amountEth);
         }
         basicIssuanceModule.issue(_setToken, _amountSetToken, msg.sender);
-        return sumEth;
+        return totalEth;
     }
     
     /**
