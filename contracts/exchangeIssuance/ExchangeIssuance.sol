@@ -401,7 +401,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             uint256[] memory amountEthIn, 
             Exchange[] memory exchanges, 
             uint256[] memory amountComponents
-        ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
+        ) = _getAmountETHForIssuance(_setToken, components, PreciseUnitMath.preciseUnit());
         
         uint256 maxIndexAmount = PreciseUnitMath.maxUint256();
         
@@ -413,7 +413,7 @@ contract ExchangeIssuance is ReentrancyGuard {
                 (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, components[i]);
                 amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             } else {
-                require(exchanges[i] == Exchange.Sushiswap);
+                require(exchanges[i] == Exchange.Sushiswap, "ExchangeIssuance: Exchange not supported");
                 (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, components[i]);
                 amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             }
@@ -560,7 +560,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             uint256[] memory amountEthIn, 
             Exchange[] memory exchanges, 
             uint256[] memory amountComponents
-        ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
+        ) = _getAmountETHForIssuance(_setToken, components, PreciseUnitMath.preciseUnit());
         
         // Acquire the SetToken components from exchanges
         uint256 setTokenAmount = PreciseUnitMath.maxUint256();
