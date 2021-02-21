@@ -230,7 +230,8 @@ contract ExchangeIssuance is ReentrancyGuard {
     * @param _setToken              Address of the SetToken to be issued
     * @param _inputToken            Address of the input token
     * @param _amountSetToken        Amount of SetTokens to issue
-    * @param _maxAmountInputToken   Maximum amount of input tokens to be used to issue SetTokens
+    * @param _maxAmountInputToken   Maximum amount of input tokens to be used to issue SetTokens. The unused 
+    *                               input tokens are returned as ether.
     */
     function issueExactSetFromToken(
         ISetToken _setToken,
@@ -394,10 +395,10 @@ contract ExchangeIssuance is ReentrancyGuard {
             amountEth = _amountInput;
         }
         
-        (uint256[] memory amountEthIn, Exchange[] memory exchanges, uint256 sumEth) = _getAmountETHForIssuance(_setToken);
+        address[] memory components = _setToken.getComponents();
+        (uint256 sumEth, uint256[] memory amountEthIn, Exchange[] memory exchanges, ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
         
         uint256 maxIndexAmount = PreciseUnitMath.maxUint256();
-        address[] memory components = _setToken.getComponents();
         
         for (uint256 i = 0; i < components.length; i++) {
             address component = components[i];
@@ -561,14 +562,14 @@ contract ExchangeIssuance is ReentrancyGuard {
      * 
      * @param _setToken         Address of the SetToken being issued
      * @param _minSetReceive    Minimum amount of index to receive
-     * @param _wethAmount       Amount of WETH to be used to purchase the SetToken components
+     * @param _totalEthAmount   Total amount of WETH to be used to purchase the SetToken components
      * @return setTokenAmount   Amount of SetTokens issued
      */
-    function _issueSetForExactWETH(ISetToken _setToken, uint256 _minSetReceive, uint256 _wethAmount) internal returns (uint256) {
-        
-        (uint256[] memory amountEthIn, Exchange[] memory exchanges, uint256 sumEth) = _getAmountETHForIssuance(_setToken);
+    function _issueSetForExactWETH(ISetToken _setToken, uint256 _minSetReceive, uint256 _totalEthAmount) internal returns (uint256) {
+        address[] memory components = _setToken.getComponents();
+        (uint256 sumEth, uint256[] memory amountEthIn, Exchange[] memory exchanges, ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
 
-        uint256 setTokenAmount = _acquireComponents(_setToken, amountEthIn, exchanges, _wethAmount, sumEth);
+        uint256 setTokenAmount = _acquireComponents(_setToken, amountEthIn, exchanges, _totalEthAmount, sumEth);
         
         require(setTokenAmount > _minSetReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
@@ -627,57 +628,62 @@ contract ExchangeIssuance is ReentrancyGuard {
     }
     
     /**
-     * Gets the amount of ether required for issuing each component in a set SetToken.
-     * The amount of ether is calculated based on prices across both uniswap and sushiswap.
+     * Gets the total amount of ether required for purchasing each component in a SetToken,
+     * to enable the issuance of a given amount of SetTokens.
      * 
-     * @param _setToken      Address of the SetToken
-     * @return amountEthIn   An array containing the amount of ether to purchase each component of the set
-     * @return exchanges     An array containing the exchange on which to perform the swap
-     * @return sumEth        The approximate total ETH cost to issue the set
+     * @param _setToken             Address of the SetToken to be issued
+     * @param _components           An array containing the addresses of the SetToken components
+     * @param _amountSetToken       Amount of SetToken to be issued
+     * @return sumEth               The approximate total ETH cost to issue the set
+     * @return amountEthIn          An array containing the amount of ether to purchase each component of the SetToken
+     * @return exchanges            An array containing the exchange on which to perform the purchase
+     * @return amountComponents     An array containing the amount of each SetToken component required for issuing the given
+     *                              amount of SetToken
      */
-    function _getAmountETHForIssuance(ISetToken _setToken)
+    function _getAmountETHForIssuance(ISetToken _setToken, address[] memory _components, uint256 _amountSetToken)
         internal
         view
-        returns (uint256[] memory, Exchange[] memory, uint256)
+        returns (uint256, uint256[] memory, Exchange[] memory, uint256[] memory)
     {
         uint256 sumEth = 0;
-        address[] memory components = _setToken.getComponents();
+        uint256[] memory amountEthIn = new uint256[](_components.length);
+        uint256[] memory amountComponents = new uint256[](_components.length);
+        Exchange[] memory exchanges = new Exchange[](_components.length);
         
-        uint256[] memory amountEthIn = new uint256[](components.length);
-        Exchange[] memory exchanges = new Exchange[](components.length);
-        
-        for (uint256 i = 0; i < components.length; i++) {
+        for (uint256 i = 0; i < _components.length; i++) {
 
             // Check that the component does not have external positions
             require(
-                _setToken.getExternalPositionModules(components[i]).length == 0,
+                _setToken.getExternalPositionModules(_components[i]).length == 0,
                 "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             // Get minimum amount of ETH to be spent to acquire the required amount of SetToken component
-            uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
-            (amountEthIn[i], exchanges[i]) = _getMinTokenForExactToken(unit, WETH, components[i]);
+            uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(_components[i]));
+            amountComponents[i] = uint256(unit).preciseMul(_amountSetToken);
+            
+            (amountEthIn[i], exchanges[i]) = _getMinTokenForExactToken(amountComponents[i], WETH, _components[i]);
             sumEth = sumEth.add(amountEthIn[i]);
         }
-        return (amountEthIn, exchanges, sumEth);
+        return (sumEth, amountEthIn, exchanges, amountComponents);
     }
     
     /**
      * Aquires all the components neccesary to issue a set, purchasing tokens
      * from either Uniswap or Sushiswap to get the best price.
      *
-     * @param _setToken      The set token
-     * @param _amountEthIn   An array containing the approximate ETH cost of each component.
-     * @param _wethBalance   The amount of WETH that the contract has to spend on aquiring the total components
-     * @param _sumEth        The approximate amount of ETH required to purchase the necessary tokens
+     * @param _setToken         The set token
+     * @param _amountEthIn      An array containing the approximate ETH cost of each component.
+     * @param _totalEthAmount   The amount of WETH that the contract has to spend on acquiring the SetToken components
+     * @param _sumEth           The approximate amount of ETH required to purchase the necessary tokens
      *
-     * @return               The maximum amount of the SetToken that can be issued with the aquired components
+     * @return                  The maximum amount of the SetToken that can be issued with the acquired components
      */
     function _acquireComponents(
         ISetToken _setToken,
         uint256[] memory _amountEthIn,
         Exchange[] memory _exchanges,
-        uint256 _wethBalance,
+        uint256 _totalEthAmount,
         uint256 _sumEth
     ) 
         internal
@@ -688,7 +694,7 @@ contract ExchangeIssuance is ReentrancyGuard {
 
         for (uint256 i = 0; i < components.length; i++) {
 
-            uint256 scaledAmountEth = _amountEthIn[i].mul(_wethBalance).div(_sumEth);
+            uint256 scaledAmountEth = _amountEthIn[i].mul(_totalEthAmount).div(_sumEth);
             
             uint256 amountTokenOut = _swapExactTokensForTokens(_exchanges[i], WETH, components[i], scaledAmountEth);
 
