@@ -132,6 +132,11 @@ contract ExchangeIssuance is ReentrancyGuard {
 
     /* ============ External Functions ============ */
     
+    receive() external payable {
+        // required for weth.withdraw() to work properly
+        require(msg.sender == WETH, "ExchangeIssuance: Direct deposits not allowed");
+    }
+    
     /**
      * Runs all the necessary approval functions required for a list of ERC20 tokens.
      *
@@ -359,9 +364,6 @@ contract ExchangeIssuance is ReentrancyGuard {
 
         emit ExchangeRedeem(msg.sender, _setToken, IERC20(ETH_ADDRESS), _amountSetToRedeem, amountEthOut);
     }
-
-    // required for weth.withdraw() to work properly
-    receive() external payable {}
 
     /**
      * Returns an estimated quantity of the specified SetToken given a specified amount of input token.
