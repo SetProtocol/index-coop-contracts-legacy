@@ -396,26 +396,29 @@ contract ExchangeIssuance is ReentrancyGuard {
         }
         
         address[] memory components = _setToken.getComponents();
-        (uint256 sumEth, uint256[] memory amountEthIn, Exchange[] memory exchanges, ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
+        (
+            uint256 sumEth, 
+            uint256[] memory amountEthIn, 
+            Exchange[] memory exchanges, 
+            uint256[] memory amountComponents
+        ) = _getAmountETHForIssuance(_setToken, components, uint256(1 ether));
         
         uint256 maxIndexAmount = PreciseUnitMath.maxUint256();
         
         for (uint256 i = 0; i < components.length; i++) {
-            address component = components[i];
             uint256 scaledAmountEth = amountEthIn[i].mul(amountEth).div(sumEth);
             
             uint256 amountTokenOut;
             if (exchanges[i] == Exchange.Uniswap) {
-                (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, component);
+                (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, components[i]);
                 amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             } else {
                 require(exchanges[i] == Exchange.Sushiswap);
-                (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, component);
+                (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, components[i]);
                 amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             }
-
-            uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(component));
-            maxIndexAmount = Math.min(amountTokenOut.preciseDiv(unit), maxIndexAmount);
+            
+            maxIndexAmount = Math.min(amountTokenOut.preciseDiv(amountComponents[i]), maxIndexAmount);
         }
         return maxIndexAmount;
     }
@@ -439,24 +442,8 @@ contract ExchangeIssuance is ReentrancyGuard {
     {
         require(_amountSetToken > 0, "ExchangeIssuance: INVALID INPUTS");
         
-        uint256 totalEth = 0;
-        
         address[] memory components = _setToken.getComponents();
-        for (uint256 i = 0; i < components.length; i++) {
-            
-            // Check that the component does not have external positions
-            require(
-                _setToken.getExternalPositionModules(components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
-            );
-            
-            uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(components[i]));
-            uint256 amountToken = unit.preciseMul(_amountSetToken);
-            
-            // get minimum amount of ETH to be spent to acquire the required amount of tokens
-            (uint256 amountEth,) = _getMinTokenForExactToken(amountToken, WETH, components[i]);
-            totalEth = totalEth.add(amountEth);
-        }
+        (uint256 totalEth, , , ) = _getAmountETHForIssuance(_setToken, components, _amountSetToken);
         
         if (address(_inputToken) == WETH) {
             return totalEth;
@@ -467,14 +454,14 @@ contract ExchangeIssuance is ReentrancyGuard {
     }
     
     /**
-     * Returns an estimated amount of ETH or specified ERC20 received for a given SetToken and SetToken amount. 
+     * Returns amount of ETH/ERC20 received upon redeeming a given amount of SetToken.
      *
-     * @param _setToken             SetToken redeemed
+     * @param _setToken             SetToken to be redeemed
      * @param _amountSetToRedeem    Amount of SetToken
-     * @param _outputToken          Address of output token. Ignored if _isOutputETH is true
+     * @param _outputToken          Address of output token
      * @return                      Estimated amount of ether/erc20 that will be received
      */
-    function getEstimatedRedeemSetAmount(
+    function getAmountOutOnRedeemSet(
         ISetToken _setToken,
         address _outputToken,
         uint256 _amountSetToRedeem
