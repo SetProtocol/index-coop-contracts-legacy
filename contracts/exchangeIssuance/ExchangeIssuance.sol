@@ -51,6 +51,7 @@ contract ExchangeIssuance is ReentrancyGuard {
 
     /* ============ Constants ============= */
 
+    uint256 constant private MAX_UINT96 = 2**96 - 1;
     address constant public ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     
     /* ============ State Variables ============ */
@@ -503,14 +504,16 @@ contract ExchangeIssuance is ReentrancyGuard {
     /* ============ Internal Functions ============ */
 
     /**
-     * Sets a max aproval limit for an ERC20 token, provided the current allowance is zero. 
+     * Sets a max aproval limit for an ERC20 token, provided the current allowance 
+     * is less than 1/2 MAX_UINT96. 
      * 
      * @param _token    Token to approve
      * @param _spender  Spender address to approve
      */
     function _safeApprove(IERC20 _token, address _spender) internal {
-        if (_token.allowance(address(this), _spender) == 0) {
-            _token.safeIncreaseAllowance(_spender, PreciseUnitMath.maxUint256());
+        uint256 allowance = _token.allowance(address(this), _spender);
+        if (allowance < MAX_UINT96 / 2) {
+            _token.safeIncreaseAllowance(_spender, MAX_UINT96 - allowance);
         }
     }
     
