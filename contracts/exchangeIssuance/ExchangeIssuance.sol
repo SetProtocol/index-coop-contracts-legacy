@@ -261,7 +261,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 amountEthReturn = initETHAmount.sub(amountEthSpent);
         if (amountEthReturn > 0) {
             IWETH(WETH).withdraw(amountEthReturn);
-            msg.sender.sendValue(amountEthReturn);
+            (payable(msg.sender)).sendValue(amountEthReturn);
         }
         
         emit ExchangeIssue(msg.sender, _setToken, _inputToken, _maxAmountInputToken, _amountSetToken);
@@ -293,7 +293,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         if (returnAmount > 0) {
             IWETH(WETH).withdraw(returnAmount);
-            msg.sender.sendValue(returnAmount);
+            (payable(msg.sender)).sendValue(returnAmount);
         }
         
         emit ExchangeIssue(msg.sender, _setToken, IERC20(ETH_ADDRESS), amountEth, _amountSetToken);
@@ -363,7 +363,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         require(amountEthOut > _minETHReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
         IWETH(WETH).withdraw(amountEthOut);
-        msg.sender.sendValue(amountEthOut);
+        (payable(msg.sender)).sendValue(amountEthOut);
 
         emit ExchangeRedeem(msg.sender, _setToken, IERC20(ETH_ADDRESS), _amountSetToRedeem, amountEthOut);
     }
