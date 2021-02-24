@@ -166,7 +166,7 @@ describe("ExchangeIssuance", () => {
       });
     });
 
-    describe("#issueSetForEactToken", async () => {
+    describe("#issueSetForExactToken", async () => {
       let subjectSetToken: Address;
       let subjectInputToken: Address;
       let subjectAmountInput: BigNumber;
@@ -223,6 +223,68 @@ describe("ExchangeIssuance", () => {
       context("when input amount is 0", async() => {
         beforeEach(async () => {
           subjectAmountInput = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+    });
+
+    describe("#issueSetForExactETH", async () => {
+      let subjectSetToken: Address;
+      let subjectAmountETHInput: BigNumber;
+      let subjectMinSetReceive: BigNumber;
+
+      beforeEach(async () => {
+        // Deploy any required dependencies
+
+        // subjectSetToken = ?
+        // subjectAmountETHInput = ?
+        // subjectMinSetReceive = ?
+      });
+
+      async function subject(): Promise<ContractTransaction> {
+        return await exchangeIssuance.issueSetForExactETH(
+          subjectSetToken,
+          subjectMinSetReceive,
+          { value: subjectAmountETHInput }
+        );
+      }
+
+      it("should issue the correct amount of Set to the caller", async () => {
+        // What state do you want to record before the test is run? (balance of the user of the Set)
+
+        await subject();
+
+        // What state do you want to verify against? (balance of the user of the Set)
+        // Was this the expected amount?
+      });
+
+      it("should use the correct amount of ether from the caller", async () => {
+        // What state do you want to record before the test is run? (ether balance of the caller)
+
+        await subject();
+
+        // What state do you want to verify against? (ether balance of the caller)
+        // Was this the expected amount?
+      });
+
+      it("emits a ExchangeIssue log", async () => {
+        // const expectedSetTokenAmount = calculate expected set token amount
+
+        await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
+          subjectCaller,
+          subjectSetToken,
+          // ethAddress, (should we fetch the eth address from the contract)
+          subjectAmountETHInput,
+          // expectedSetTokenAmount
+        );
+      });
+
+      context("when input ether amount is 0", async() => {
+        beforeEach(async () => {
+          subjectAmountETHInput = ZERO;
         });
 
         it("should revert", async () => {
@@ -311,7 +373,77 @@ describe("ExchangeIssuance", () => {
           await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
         });
       });
+    });
 
+    describe("#issueExactSetFromETH", async () => {
+      let subjectSetToken: Address;
+      let subjectAmountETHInput: BigNumber;
+      let subjectAmountSetToken: BigNumber;
+
+      beforeEach(async () => {
+        // Deploy any required dependencies
+
+        // subjectSetToken = ?
+        // subjectAmountETHInput = ?
+        // subjectAmountSetToken = ?
+      });
+
+      async function subject(): Promise<ContractTransaction> {
+        return await exchangeIssuance.issuesExactSetFromETH(
+          subjectSetToken,
+          subjectAmountSetToken,
+          { value: subjectAmountSetToken }
+        );
+      }
+
+      it("should issue the correct amount of Set to the caller", async () => {
+        // What state do you want to record before the test is run? (balance of the user of the Set)
+
+        await subject();
+
+        // What state do you want to verify against? (difference in the balance of the Set equals subjectAmountSetToken)
+      });
+
+      it("should use the correct amount of ether from the caller", async () => {
+        // What state do you want to record before the test is run? (ether balance of the caller)
+
+        await subject();
+
+        // Note: bot input amount and return amount need to be taken into account.
+        // What state do you want to verify against? (ether balance of the caller)
+      });
+
+      it("emits a ExchangeIssue log", async () => {
+        // const expectedSetTokenAmount = calculate expected set token amount
+
+        await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
+          subjectCaller,
+          subjectSetToken,
+          // ether_address,
+          subjectAmountETHInput,
+          subjectAmountSetToken
+        );
+      });
+
+      context("when input ether amount is 0", async() => {
+        beforeEach(async () => {
+           subjectAmountETHInput = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+
+      context("when amount Set is 0", async() => {
+        beforeEach(async () => {
+          subjectAmountSetToken = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
     });
   });
 });
