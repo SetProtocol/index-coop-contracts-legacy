@@ -20,7 +20,9 @@ const basicIssuanceModule = "0xd8EF3cACe8b4907117a45B0b125c68560532F94D";
 
 const deploy = async (account: any) => {
   const ExchangeIssuance = await ethers.getContractFactory("ExchangeIssuance");
-  return (await ExchangeIssuance.deploy(uniFactory,
+  return (await ExchangeIssuance.deploy(
+    wethAddress,
+    uniFactory,
     uniRouter,
     sushiFactory,
     sushiRouter,

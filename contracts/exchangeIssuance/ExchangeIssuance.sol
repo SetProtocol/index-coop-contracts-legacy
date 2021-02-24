@@ -14,6 +14,7 @@
 pragma solidity 0.6.10;
 pragma experimental ABIEncoderV2;
 
+import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IUniswapV2Factory } from "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import { IUniswapV2Router02 } from "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
@@ -40,6 +41,7 @@ import { UniswapV2Library } from "../../external/contracts/UniswapV2Library.sol"
  */
 contract ExchangeIssuance is ReentrancyGuard {
     
+    using Address for address payable;
     using SafeMath for uint256;
     using PreciseUnitMath for uint256;
     using SafeERC20 for IERC20;
@@ -94,6 +96,7 @@ contract ExchangeIssuance is ReentrancyGuard {
     /* ============ Constructor ============ */
 
     constructor(
+        address _weth,
         address _uniFactory,
         IUniswapV2Router02 _uniRouter, 
         address _sushiFactory, 
@@ -108,10 +111,11 @@ contract ExchangeIssuance is ReentrancyGuard {
 
         sushiFactory = _sushiFactory;
         sushiRouter = _sushiRouter;
-
-        WETH = uniRouter.WETH();
+        
         setController = _setController;
         basicIssuanceModule = _basicIssuanceModule;
+        
+        WETH = _weth;
         IERC20(WETH).safeApprove(address(uniRouter), PreciseUnitMath.maxUint256());
         IERC20(WETH).safeApprove(address(sushiRouter), PreciseUnitMath.maxUint256());
     }
@@ -257,8 +261,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 amountEthReturn = initETHAmount.sub(amountEthSpent);
         if (amountEthReturn > 0) {
             IWETH(WETH).withdraw(amountEthReturn);
-            (bool sent, ) = msg.sender.call{value: amountEthReturn}("");
-            require(sent, "ExchangeIssuance: Failed to return Ether");
+            msg.sender.sendValue(amountEthReturn);
         }
         
         emit ExchangeIssue(msg.sender, _setToken, _inputToken, _maxAmountInputToken, _amountSetToken);
@@ -290,8 +293,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         if (returnAmount > 0) {
             IWETH(WETH).withdraw(returnAmount);
-            (bool sent, ) = msg.sender.call{value: returnAmount}("");
-            require(sent, "ExchangeIssuance: Failed to return Ether");
+            msg.sender.sendValue(returnAmount);
         }
         
         emit ExchangeIssue(msg.sender, _setToken, IERC20(ETH_ADDRESS), amountEth, _amountSetToken);
@@ -361,8 +363,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         require(amountEthOut > _minETHReceive, "ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         
         IWETH(WETH).withdraw(amountEthOut);
-        (bool sent, ) = msg.sender.call{value: amountEthOut}("");
-        require(sent, "ExchangeIssuance: Failed to send Ether");
+        msg.sender.sendValue(amountEthOut);
 
         emit ExchangeRedeem(msg.sender, _setToken, IERC20(ETH_ADDRESS), _amountSetToRedeem, amountEthOut);
     }
