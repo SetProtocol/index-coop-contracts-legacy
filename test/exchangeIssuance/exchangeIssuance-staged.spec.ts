@@ -15,16 +15,18 @@ import {
   getStreamingFee,
   getStreamingFeeInflationAmount,
   getTransactionTimestamp,
+  getUniswapFixture,
   getWaffleExpect,
   increaseTimeAsync,
   preciseMul,
 } from "@utils/index";
 import { SetFixture } from "@utils/fixtures";
+import { UniswapFixture } from "@utils/fixtures";
 import { BigNumber, ContractTransaction } from "ethers";
 
 const expect = getWaffleExpect();
 
-describe("ExchangeIssuance", () => {
+describe("ExchangeIssuance", async () => {
   let owner: Account;
   let operator: Account;
   let setV2Setup: SetFixture;
@@ -34,7 +36,7 @@ describe("ExchangeIssuance", () => {
 
   let exchangeIssuance: ExchangeIssuance;
 
-  before(async () => {
+  beforeEach(async () => {
     [
       owner,
       operator,
@@ -62,15 +64,30 @@ describe("ExchangeIssuance", () => {
     let subjectControllerAddress: Address;
     let subjectBasicIssuanceModuleAddress: Address;
 
-    beforeEach(async () => {
-      // TODO: deploy requisite contracts using fixtures
+    before(async () => {
+      let uniswapSetup: UniswapFixture;
+      let sushiswapSetup: UniswapFixture;
+      let wethAddress: Address;
+      let wbtcAddress: Address;
+      let daiAddress: Address;
 
-      // subjectUniswapFactoryAddress = ?
-      // subjectUniswapRouterAddress = ?
-      // subjectSushiswapFactoryAddress = ?
-      // subjectSushiswapRouterAddress = ?
-      // subjectControllerAddress = ?
-      // subjectBasicIssuanceModuleAddress = ?
+      // TODO: should we instead port SystemFixtrue and use tokens from it ?
+      wethAddress = setV2Setup.weth.address;
+      wbtcAddress = setV2Setup.wbtc.address;
+      daiAddress = setV2Setup.dai.address;
+
+      uniswapSetup = await getUniswapFixture(owner.address);
+      await uniswapSetup.initialize(owner, wethAddress, wbtcAddress, daiAddress);
+
+      sushiswapSetup = await getUniswapFixture(owner.address);
+      await sushiswapSetup.initialize(owner, wethAddress, wbtcAddress, daiAddress);
+
+      subjectUniswapFactoryAddress = uniswapSetup.factory.address;
+      subjectUniswapRouterAddress = uniswapSetup.router.address;
+      subjectSushiswapFactoryAddress = sushiswapSetup.factory.address;
+      subjectSushiswapRouterAddress = sushiswapSetup.factory.address;
+      subjectControllerAddress = setV2Setup.controller.address;
+      subjectBasicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
     });
 
     async function subject(): Promise<ExchangeIssuance> {
@@ -89,8 +106,8 @@ describe("ExchangeIssuance", () => {
       const exchangeIssuanceContract: ExchangeIssuance = await subject();
 
       // TODO: verify all of the state set in the constructor is correct
-      // const expectedController = await exchangeIssuanceContract.controller();
-      // expect(expectedController).to.eq(setup.controller.address);
+      const expectedController = await exchangeIssuanceContract.controller();
+      expect(expectedController).to.eq(setV2Setup.controller.address);
 
       // uniFactory?
       // uniRouter?
@@ -154,7 +171,7 @@ describe("ExchangeIssuance", () => {
         // What state do you want to verify against? (post approval allowances of each token)
       });
 
-      context("when the set contains an external position", async() => {
+      context("when the set contains an external position", async () => {
         beforeEach(async () => {
           // Stick an external position into the Set
         });
@@ -220,7 +237,7 @@ describe("ExchangeIssuance", () => {
         );
       });
 
-      context("when input amount is 0", async() => {
+      context("when input amount is 0", async () => {
         beforeEach(async () => {
           subjectAmountInput = ZERO;
         });
@@ -282,7 +299,7 @@ describe("ExchangeIssuance", () => {
         );
       });
 
-      context("when input ether amount is 0", async() => {
+      context("when input ether amount is 0", async () => {
         beforeEach(async () => {
           subjectAmountETHInput = ZERO;
         });
@@ -354,7 +371,7 @@ describe("ExchangeIssuance", () => {
         );
       });
 
-      context("when max input amount is 0", async() => {
+      context("when max input amount is 0", async () => {
         beforeEach(async () => {
           subjectMaxAmountInput = ZERO;
         });
@@ -364,7 +381,7 @@ describe("ExchangeIssuance", () => {
         });
       });
 
-      context("when amount Set is 0", async() => {
+      context("when amount Set is 0", async () => {
         beforeEach(async () => {
           subjectAmountSetToken = ZERO;
         });
@@ -425,9 +442,9 @@ describe("ExchangeIssuance", () => {
         );
       });
 
-      context("when input ether amount is 0", async() => {
+      context("when input ether amount is 0", async () => {
         beforeEach(async () => {
-           subjectAmountETHInput = ZERO;
+          subjectAmountETHInput = ZERO;
         });
 
         it("should revert", async () => {
@@ -435,7 +452,7 @@ describe("ExchangeIssuance", () => {
         });
       });
 
-      context("when amount Set is 0", async() => {
+      context("when amount Set is 0", async () => {
         beforeEach(async () => {
           subjectAmountSetToken = ZERO;
         });
