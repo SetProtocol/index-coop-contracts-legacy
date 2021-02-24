@@ -2,9 +2,9 @@ import "module-alias/register";
 
 import { solidityKeccak256 } from "ethers/lib/utils";
 import { Address, Account } from "@utils/types";
-import { ADDRESS_ZERO, ZERO, ONE_DAY_IN_SECONDS, ONE_YEAR_IN_SECONDS } from "@utils/constants";
-import { ExchangeIssuance } from "@utils/contracts/index";
-import { SetToken } from "@utils/contracts/setV2";
+import { ADDRESS_ZERO, ZERO, ONE_DAY_IN_SECONDS, ONE_YEAR_IN_SECONDS, MAX_UINT_256, MAX_UINT_96 } from "@utils/constants";
+import { ExchangeIssuance, StandardTokenMock, UniswapV2Router02, WETH9 } from "@utils/contracts/index";
+import { Controller, SetToken } from "@utils/contracts/setV2";
 import DeployHelper from "@utils/deploys";
 import {
   addSnapshotBeforeRestoreAfterEach,
@@ -22,13 +22,14 @@ import {
 } from "@utils/index";
 import { SetFixture } from "@utils/fixtures";
 import { UniswapFixture } from "@utils/fixtures";
-import { BigNumber, ContractTransaction } from "ethers";
+import { BigNumber, ContractTransaction, utils } from "ethers";
+import { use } from "chai";
 
 const expect = getWaffleExpect();
 
 describe("ExchangeIssuance", async () => {
   let owner: Account;
-  let operator: Account;
+  let user: Account;
   let setV2Setup: SetFixture;
 
   let deployer: DeployHelper;
@@ -39,7 +40,7 @@ describe("ExchangeIssuance", async () => {
   before(async () => {
     [
       owner,
-      operator,
+      user,
     ] = await getAccounts();
 
     deployer = new DeployHelper(owner.wallet);
@@ -48,8 +49,8 @@ describe("ExchangeIssuance", async () => {
     await setV2Setup.initialize();
 
     setToken = await setV2Setup.createSetToken(
-      [setV2Setup.dai.address],
-      [ether(1)],
+      [setV2Setup.dai.address, setV2Setup.wbtc.address],
+      [ether(0.5), ether(0.5)],
       [setV2Setup.debtIssuanceModule.address, setV2Setup.streamingFeeModule.address]
     );
   });
@@ -59,9 +60,9 @@ describe("ExchangeIssuance", async () => {
   describe("#constructor", async () => {
     let subjectWethAddress: Address;
     let subjectUniswapFactoryAddress: Address;
-    let subjectUniswapRouterAddress: Address;
+    let subjectUniswapRouter: UniswapV2Router02;
     let subjectSushiswapFactoryAddress: Address;
-    let subjectSushiswapRouterAddress: Address;
+    let subjectSushiswapRouter: UniswapV2Router02;
     let subjectControllerAddress: Address;
     let subjectBasicIssuanceModuleAddress: Address;
 
@@ -85,9 +86,9 @@ describe("ExchangeIssuance", async () => {
 
       subjectWethAddress = wethAddress;
       subjectUniswapFactoryAddress = uniswapSetup.factory.address;
-      subjectUniswapRouterAddress = uniswapSetup.router.address;
+      subjectUniswapRouter = uniswapSetup.router;
       subjectSushiswapFactoryAddress = sushiswapSetup.factory.address;
-      subjectSushiswapRouterAddress = sushiswapSetup.factory.address;
+      subjectSushiswapRouter = sushiswapSetup.router;
       subjectControllerAddress = setV2Setup.controller.address;
       subjectBasicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
     });
@@ -96,9 +97,9 @@ describe("ExchangeIssuance", async () => {
       return await deployer.adapters.deployExchangeIssuance(
         subjectWethAddress,
         subjectUniswapFactoryAddress,
-        subjectUniswapRouterAddress,
+        subjectUniswapRouter.address,
         subjectSushiswapFactoryAddress,
-        subjectSushiswapRouterAddress,
+        subjectSushiswapRouter.address,
         subjectControllerAddress,
         subjectBasicIssuanceModuleAddress
       );
@@ -111,13 +112,13 @@ describe("ExchangeIssuance", async () => {
       expect(expectedWethAddress).to.eq(subjectWethAddress);
 
       const expectedUniRouterAddress = await exchangeIssuanceContract.uniRouter();
-      expect(expectedUniRouterAddress).to.eq(subjectUniswapRouterAddress);
+      expect(expectedUniRouterAddress).to.eq(subjectUniswapRouter.address);
 
       const expectedUniFactoryAddress = await exchangeIssuanceContract.uniFactory();
       expect(expectedUniFactoryAddress).to.eq(subjectUniswapFactoryAddress);
 
       const expectedSushiRouterAddress = await exchangeIssuanceContract.sushiRouter();
-      expect(expectedSushiRouterAddress).to.eq(subjectSushiswapRouterAddress);
+      expect(expectedSushiRouterAddress).to.eq(subjectSushiswapRouter.address);
 
       const expectedSushiFactoryAddress = await exchangeIssuanceContract.sushiFactory();
       expect(expectedSushiFactoryAddress).to.eq(subjectSushiswapFactoryAddress);
@@ -130,56 +131,132 @@ describe("ExchangeIssuance", async () => {
     });
 
     it("approves WETH to the uniswap and sushiswap router", async () => {
-      await subject();
+      let exchangeIssuance: ExchangeIssuance = await subject();
 
       // validate the allowance of WETH between uniswap, sushiswap, and the deployed exchange issuance contract
+      const uniswapWethAllowance = await setV2Setup.weth.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+      expect(uniswapWethAllowance).to.eq(MAX_UINT_256);
+
+      const sushiswapWethAllownace = await setV2Setup.weth.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+      expect(sushiswapWethAllownace).to.eq(MAX_UINT_256);
+      
     });
   });
 
   context("when exchange issuance is deployed", async () => {
+    let subjectWethAddress: Address;
+    let subjectUniswapFactoryAddress: Address;
+    let subjectUniswapRouter: UniswapV2Router02;
+    let subjectSushiswapFactoryAddress: Address;
+    let subjectSushiswapRouter: UniswapV2Router02;
+    let subjectControllerAddress: Address;
+    let subjectBasicIssuanceModuleAddress: Address;
+
     beforeEach(async () => {
-      // TODO: deploy required fixtures and exchange issuance
+      let uniswapSetup: UniswapFixture;
+      let sushiswapSetup: UniswapFixture;
+      let weth: WETH9;
+      let wbtc: StandardTokenMock;
+      let dai: StandardTokenMock;
+
+      // TODO: should we instead port SystemFixtrue and use tokens from it ?
+      weth = setV2Setup.weth;
+      wbtc = setV2Setup.wbtc;
+      dai = setV2Setup.dai;
+
+      uniswapSetup = await getUniswapFixture(owner.address);
+      await uniswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
+
+      sushiswapSetup = await getUniswapFixture(owner.address);
+      await sushiswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
+
+      subjectWethAddress = weth.address;
+      subjectUniswapFactoryAddress = uniswapSetup.factory.address;
+      subjectUniswapRouter = uniswapSetup.router;
+      subjectSushiswapFactoryAddress = sushiswapSetup.factory.address;
+      subjectSushiswapRouter = sushiswapSetup.router;
+      subjectControllerAddress = setV2Setup.controller.address;
+      subjectBasicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
+      
+      exchangeIssuance = await deployer.adapters.deployExchangeIssuance(
+        subjectWethAddress,
+        subjectUniswapFactoryAddress,
+        subjectUniswapRouter.address,
+        subjectSushiswapFactoryAddress,
+        subjectSushiswapRouter.address,
+        subjectControllerAddress,
+        subjectBasicIssuanceModuleAddress
+      );
     });
 
     describe("#approveToken", async () => {
-      let subjectTokenToApproveAddress: Address;
+      let subjectTokenToApprove: StandardTokenMock;
 
       beforeEach(async () => {
-        // What token are we trying to test the approval for?
-        // subjectTokenToApproveAddress = ?
+        subjectTokenToApprove = setV2Setup.dai;
       });
 
       async function subject(): Promise<ContractTransaction> {
-        return await exchangeIssuance.approveToken(subjectTokenToApproveAddress);
+        return await exchangeIssuance.approveToken(subjectTokenToApprove.address);
       }
 
       it("should update the approvals correctly", async () => {
-        // What state do you want to record before the test is run? (allowance)
+        const initUniswapDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const initSushiswapDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const initIssuanceModuleDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
 
-        // Execute the function in question
         await subject();
 
-        // What state do you want to verify against? (post approval allowance)
+        const finalUniswapDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const finalSushiswapDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const finalIssuanceModuleDaiAllownace = await subjectTokenToApprove.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        expect(finalUniswapDaiAllownace.sub(initUniswapDaiAllownace)).eq(MAX_UINT_96);
+        expect(finalSushiswapDaiAllownace.sub(initSushiswapDaiAllownace)).eq(MAX_UINT_96);
+        expect(finalIssuanceModuleDaiAllownace.sub(initIssuanceModuleDaiAllownace)).eq(MAX_UINT_96);
       });
     });
 
     describe("#approveTokens", async () => {
-      let subjectTokensToApproveAddresses: Address[];
+      let subjectTokensToApprove: StandardTokenMock[];
 
       beforeEach(async () => {
-        // subjectTokensToApproveAddresses = ?
+        subjectTokensToApprove = [setV2Setup.dai, setV2Setup.wbtc]
+        
       });
 
       async function subject(): Promise<ContractTransaction> {
-        return await exchangeIssuance.approveTokens(subjectTokensToApproveAddresses);
+        return await exchangeIssuance.approveTokens(subjectTokensToApprove.map(token => token.address));
       }
 
       it("should update the approvals correctly", async () => {
-        // What state do you want to record before the test is run? (allowances for each token)
+        const token1 = subjectTokensToApprove[0];
+        const initUniswapToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const initSushiswapToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const initIssuanceModuleToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        const token2 = subjectTokensToApprove[1];
+        const initUniswapToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const initSushiswapToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const initIssuanceModuleToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
 
         await subject();
 
-        // What state do you want to verify against? (post approval allowances of each token)
+        const finalUniswapToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const finalSushiswapToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const finalIssuanceModuleToken1Allownace = await token1.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        const finalUniswapToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const finalSushiswapToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const finalIssuanceModuleToken2Allownace = await token2.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        expect(finalUniswapToken1Allownace.sub(initUniswapToken1Allownace)).eq(MAX_UINT_96);
+        expect(finalSushiswapToken1Allownace.sub(initSushiswapToken1Allownace)).eq(MAX_UINT_96);
+        expect(finalIssuanceModuleToken1Allownace.sub(initIssuanceModuleToken1Allownace)).eq(MAX_UINT_96);
+
+        expect(finalUniswapToken2Allownace.sub(initUniswapToken2Allownace)).eq(MAX_UINT_96);
+        expect(finalSushiswapToken2Allownace.sub(initSushiswapToken2Allownace)).eq(MAX_UINT_96);
+        expect(finalIssuanceModuleToken2Allownace.sub(initIssuanceModuleToken2Allownace)).eq(MAX_UINT_96);
       });
 
       context("when the set contains an external position", async () => {
@@ -194,7 +271,52 @@ describe("ExchangeIssuance", async () => {
       });
     });
 
+    describe("#approveSetToken", async () => {
+      let subjectSetToApprove: SetToken;
+      let subjectToken1: StandardTokenMock;
+      let subjectToken2: StandardTokenMock;
+
+      beforeEach(async () => {
+        subjectSetToApprove = setToken;
+        subjectToken1 = setV2Setup.dai;
+        subjectToken2 = setV2Setup.wbtc;
+      });
+
+      async function subject(): Promise<ContractTransaction> {
+        return await exchangeIssuance.approveSetToken(subjectSetToApprove.address);
+      }
+
+      it("should update the approvals correctly", async () => {
+        const initUniswapToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const initSushiswapToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const initIssuanceModuleToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        const initUniswapToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const initSushiswapToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const initIssuanceModuleToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        await subject();
+
+        const finalUniswapToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const finalSushiswapToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const finalIssuanceModuleToken1Allownace = await subjectToken1.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        const finalUniswapToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectUniswapRouter.address);
+        const finalSushiswapToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectSushiswapRouter.address);
+        const finalIssuanceModuleToken2Allownace = await subjectToken2.allowance(exchangeIssuance.address, subjectBasicIssuanceModuleAddress);
+
+        expect(finalUniswapToken1Allownace.sub(initUniswapToken1Allownace)).eq(MAX_UINT_96);
+        expect(finalSushiswapToken1Allownace.sub(initSushiswapToken1Allownace)).eq(MAX_UINT_96);
+        expect(finalIssuanceModuleToken1Allownace.sub(initIssuanceModuleToken1Allownace)).eq(MAX_UINT_96);
+
+        expect(finalUniswapToken2Allownace.sub(initUniswapToken2Allownace)).eq(MAX_UINT_96);
+        expect(finalSushiswapToken2Allownace.sub(initSushiswapToken2Allownace)).eq(MAX_UINT_96);
+        expect(finalIssuanceModuleToken2Allownace.sub(initIssuanceModuleToken2Allownace)).eq(MAX_UINT_96);
+      });
+    });
+
     describe("#issueSetForExactToken", async () => {
+      let subjectCaller: Address;
       let subjectSetToken: Address;
       let subjectInputToken: Address;
       let subjectAmountInput: BigNumber;
@@ -260,33 +382,39 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#issueSetForExactETH", async () => {
-      let subjectSetToken: Address;
+      let subjectCaller: Account;
+      let subjectSetToken: SetToken;
       let subjectAmountETHInput: BigNumber;
       let subjectMinSetReceive: BigNumber;
 
       beforeEach(async () => {
-        // Deploy any required dependencies
-
-        // subjectSetToken = ?
-        // subjectAmountETHInput = ?
-        // subjectMinSetReceive = ?
+        subjectSetToken = setToken;
+        subjectCaller = user;
+        subjectAmountETHInput = ether(100);
+        subjectMinSetReceive = ether(0);
       });
 
       async function subject(): Promise<ContractTransaction> {
-        return await exchangeIssuance.issueSetForExactETH(
-          subjectSetToken,
+        return await exchangeIssuance.connect(subjectCaller.wallet).issueSetForExactETH(
+          subjectSetToken.address,
           subjectMinSetReceive,
           { value: subjectAmountETHInput }
         );
       }
 
       it("should issue the correct amount of Set to the caller", async () => {
-        // What state do you want to record before the test is run? (balance of the user of the Set)
+        const initSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
 
         await subject();
 
-        // What state do you want to verify against? (balance of the user of the Set)
-        // Was this the expected amount?
+        const finalSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
+
+        // calculate expected set output
+        (await subjectSetToken.getComponents()).forEach(async component => {
+          const unit = await subjectSetToken.getDefaultPositionRealUnit(component);
+          let amountEthToSpend = subjectAmountETHInput.mul(unit).div(ether(1));
+          subjectUniswapRouter
+        });
       });
 
       it("should use the correct amount of ether from the caller", async () => {
@@ -322,6 +450,7 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#issueExactSetFromToken", async () => {
+      let subjectCaller: Address;
       let subjectSetToken: Address;
       let subjectInputToken: Address;
       let subjectMaxAmountInput: BigNumber;
@@ -404,6 +533,7 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#issueExactSetFromETH", async () => {
+      let subjectCaller: Address;
       let subjectSetToken: Address;
       let subjectAmountETHInput: BigNumber;
       let subjectAmountSetToken: BigNumber;
