@@ -44,6 +44,7 @@ export default class DeployAdapters {
   }
 
   public async deployExchangeIssuance(
+    wethAddress: Address,
     uniFactoryAddress: Address,
     uniRouterAddress: Address,
     sushiFactoryAddress: Address,
@@ -52,6 +53,7 @@ export default class DeployAdapters {
     basicIssuanceModuleAddress: Address,
   ): Promise<ExchangeIssuance> {
     return await new ExchangeIssuance__factory(this._deployerSigner).deploy(
+      wethAddress,
       uniFactoryAddress,
       uniRouterAddress,
       sushiFactoryAddress,

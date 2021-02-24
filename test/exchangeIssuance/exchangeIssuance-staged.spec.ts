@@ -36,7 +36,7 @@ describe("ExchangeIssuance", async () => {
 
   let exchangeIssuance: ExchangeIssuance;
 
-  beforeEach(async () => {
+  before(async () => {
     [
       owner,
       operator,
@@ -57,6 +57,7 @@ describe("ExchangeIssuance", async () => {
   addSnapshotBeforeRestoreAfterEach();
 
   describe("#constructor", async () => {
+    let subjectWethAddress: Address;
     let subjectUniswapFactoryAddress: Address;
     let subjectUniswapRouterAddress: Address;
     let subjectSushiswapFactoryAddress: Address;
@@ -82,6 +83,7 @@ describe("ExchangeIssuance", async () => {
       sushiswapSetup = await getUniswapFixture(owner.address);
       await sushiswapSetup.initialize(owner, wethAddress, wbtcAddress, daiAddress);
 
+      subjectWethAddress = wethAddress;
       subjectUniswapFactoryAddress = uniswapSetup.factory.address;
       subjectUniswapRouterAddress = uniswapSetup.router.address;
       subjectSushiswapFactoryAddress = sushiswapSetup.factory.address;
@@ -92,6 +94,7 @@ describe("ExchangeIssuance", async () => {
 
     async function subject(): Promise<ExchangeIssuance> {
       return await deployer.adapters.deployExchangeIssuance(
+        subjectWethAddress,
         subjectUniswapFactoryAddress,
         subjectUniswapRouterAddress,
         subjectSushiswapFactoryAddress,
@@ -102,20 +105,28 @@ describe("ExchangeIssuance", async () => {
     }
 
     it("verify state set properly via constructor", async () => {
-      // execute the test subject, which is the function we're testing
       const exchangeIssuanceContract: ExchangeIssuance = await subject();
 
-      // TODO: verify all of the state set in the constructor is correct
-      const expectedController = await exchangeIssuanceContract.controller();
-      expect(expectedController).to.eq(setV2Setup.controller.address);
+      const expectedWethAddress = await exchangeIssuanceContract.WETH();
+      expect(expectedWethAddress).to.eq(subjectWethAddress);
 
-      // uniFactory?
-      // uniRouter?
-      // sushiFactory?
-      // sushiRouter?
-      // WETH?
-      // controller?
-      // basicIssuanceModule?
+      const expectedUniRouterAddress = await exchangeIssuanceContract.uniRouter();
+      expect(expectedUniRouterAddress).to.eq(subjectUniswapRouterAddress);
+
+      const expectedUniFactoryAddress = await exchangeIssuanceContract.uniFactory();
+      expect(expectedUniFactoryAddress).to.eq(subjectUniswapFactoryAddress);
+
+      const expectedSushiRouterAddress = await exchangeIssuanceContract.sushiRouter();
+      expect(expectedSushiRouterAddress).to.eq(subjectSushiswapRouterAddress);
+
+      const expectedSushiFactoryAddress = await exchangeIssuanceContract.sushiFactory();
+      expect(expectedSushiFactoryAddress).to.eq(subjectSushiswapFactoryAddress);
+
+      const expectedControllerAddress = await exchangeIssuanceContract.setController();
+      expect(expectedControllerAddress).to.eq(subjectControllerAddress);
+
+      const expectedBasicIssuanceModuleAddress = await exchangeIssuanceContract.basicIssuanceModule();
+      expect(expectedBasicIssuanceModuleAddress).to.eq(subjectBasicIssuanceModuleAddress);
     });
 
     it("approves WETH to the uniswap and sushiswap router", async () => {
