@@ -25,11 +25,9 @@ import { UniswapFixture } from "@utils/fixtures";
 import { BigNumber, ContractTransaction } from "ethers";
 import { ethers } from "hardhat";
 
-const erc20ABI = require("./erc20abi.json");
-
 const expect = getWaffleExpect();
 
-const getEthAmountOutForIssuance = async (setToken: SetToken, ethInput: BigNumber, uniswapRouter: UniswapV2Router02, weth: string) => {
+const getIssueSetForExactETH = async (setToken: SetToken, ethInput: BigNumber, uniswapRouter: UniswapV2Router02, weth: string) => {
   let sumEth = BigNumber.from(0);
   const amountEthForComponents = [];
   const components = await setToken.getComponents();
@@ -55,6 +53,13 @@ const getEthAmountOutForIssuance = async (setToken: SetToken, ethInput: BigNumbe
   };
   return expectedOutput;
 }
+
+const getIssueSetForExactToken = async (setToken: SetToken, inputToken: string, inputAmount: BigNumber, 
+  uniswapRouter: UniswapV2Router02, weth: string) => {
+    // get eth amount that can be aquired with inputToken
+    const ethInput = (await uniswapRouter.getAmountsOut(inputAmount, [inputToken, weth]))[1];
+    return await getIssueSetForExactETH(setToken, ethInput, uniswapRouter, weth);
+  }
 
 describe("ExchangeIssuance", async () => {
   let owner: Account;
@@ -182,17 +187,20 @@ describe("ExchangeIssuance", async () => {
     let subjectControllerAddress: Address;
     let subjectBasicIssuanceModuleAddress: Address;
 
+    let weth: WETH9;
+    let wbtc: StandardTokenMock;
+    let dai: StandardTokenMock;
+    let usdc: StandardTokenMock;
+
     beforeEach(async () => {
       let uniswapSetup: UniswapFixture;
       let sushiswapSetup: UniswapFixture;
-      let weth: WETH9;
-      let wbtc: StandardTokenMock;
-      let dai: StandardTokenMock;
 
       // TODO: should we instead port SystemFixtrue and use tokens from it ?
       weth = setV2Setup.weth;
       wbtc = setV2Setup.wbtc;
       dai = setV2Setup.dai;
+      usdc = await deployer.setV2.deployTokenMock(user.address, 100000 * 10**6, 6, "USD Coin", "USDC")
 
       uniswapSetup = await getUniswapFixture(owner.address);
       await uniswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
@@ -209,6 +217,8 @@ describe("ExchangeIssuance", async () => {
 
       await uniswapSetup.createNewPair(weth.address, wbtc.address);
       await uniswapSetup.createNewPair(weth.address, dai.address);
+      await uniswapSetup.createNewPair(weth.address, usdc.address);
+
       await wbtc.approve(subjectUniswapRouter.address, MAX_UINT_256);
       await subjectUniswapRouter.connect(owner.wallet).addLiquidityETH(
         wbtc.address, 
@@ -219,13 +229,25 @@ describe("ExchangeIssuance", async () => {
         (await getLastBlockTimestamp()).add(1),
         { value: ether(100), gasLimit: 9000000 }
       );
+
       await dai.approve(subjectUniswapRouter.address, MAX_INT_256);
       await subjectUniswapRouter.connect(owner.wallet).addLiquidityETH(
         dai.address, 
-        ether(100000), 
+        ether(100000),   
+        MAX_UINT_256,
+        MAX_UINT_256,
+        owner.address,
+        (await getLastBlockTimestamp()).add(1),
+        { value: ether(10), gasLimit: 9000000 }
+      );
+
+      await usdc.connect(user.wallet).approve(subjectUniswapRouter.address, MAX_INT_256);
+      await subjectUniswapRouter.connect(user.wallet).addLiquidityETH(
+        usdc.address,
+        10000 * 10**6,
         MAX_UINT_256, 
         MAX_UINT_256, 
-        owner.address, 
+        user.address, 
         (await getLastBlockTimestamp()).add(1),
         { value: ether(100), gasLimit: 9000000 }
       );
@@ -367,57 +389,74 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#issueSetForExactToken", async () => {
-      let subjectCaller: Address;
-      let subjectSetToken: Address;
-      let subjectInputToken: Address;
+      let subjectCaller: Account;
+      let subjectSetToken: SetToken;
+      let subjectInputToken: StandardTokenMock;
       let subjectAmountInput: BigNumber;
       let subjectMinSetReceive: BigNumber;
 
       beforeEach(async () => {
         // Deploy any required dependencies
-
-        subjectSetToken = ""
-        subjectInputToken = ""
-        subjectAmountInput = ether(100)
+        subjectCaller = user;
+        subjectSetToken = setToken;
+        subjectInputToken = usdc;
+        subjectAmountInput = BigNumber.from(1000 * 10**6);
         subjectMinSetReceive = ether(0);
       });
 
       async function subject(): Promise<ContractTransaction> {
-        return await exchangeIssuance.issueSetForExactToken(
-          subjectSetToken,
-          subjectInputToken,
+        await exchangeIssuance.approveSetToken(subjectSetToken.address);
+        await subjectInputToken.connect(subjectCaller.wallet).approve(exchangeIssuance.address, MAX_UINT_256);
+        return await exchangeIssuance.connect(subjectCaller.wallet).issueSetForExactToken(
+          subjectSetToken.address,
+          subjectInputToken.address,
           subjectAmountInput,
-          subjectMinSetReceive
+          subjectMinSetReceive,
+          { gasLimit: 9000000 }
         );
       }
 
       it("should issue the correct amount of Set to the caller", async () => {
-        // What state do you want to record before the test is run? (balance of the user of the Set)
+        // calculate amount set to be received
+        const expectedOutput = await getIssueSetForExactToken(
+          subjectSetToken, 
+          subjectInputToken.address, 
+          subjectAmountInput, 
+          subjectUniswapRouter, 
+          weth.address
+        );
 
+        // issue tokens
+        const initSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
         await subject();
+        const finalSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
 
-        // What state do you want to verify against? (balance of the user of the Set)
-        // Was this the expected amount?
+        expect(expectedOutput).to.eq(finalSetBalance.sub(initSetBalance));
       });
 
       it("should use the correct amount of input token from the caller", async () => {
-        // What state do you want to record before the test is run? (balance of the input token of the caller)
-
+        const initTokenBalance = await subjectInputToken.balanceOf(subjectCaller.address);
         await subject();
+        const finalTokenBalance = await subjectInputToken.balanceOf(subjectCaller.address);
 
-        // What state do you want to verify against? (balance of the input token of the caller)
-        // Was this the expected amount?
+        expect(subjectAmountInput).to.eq(initTokenBalance.sub(finalTokenBalance));
       });
 
       it("emits a ExchangeIssue log", async () => {
-        // const expectedSetTokenAmount = calculate expected set token amount
+        const expectedSetTokenAmount = await getIssueSetForExactToken(
+          subjectSetToken, 
+          subjectInputToken.address, 
+          subjectAmountInput, 
+          subjectUniswapRouter, 
+          weth.address
+        );
 
         await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
-          subjectCaller,
-          subjectSetToken,
-          subjectInputToken,
+          subjectCaller.address,
+          subjectSetToken.address,
+          subjectInputToken.address,
           subjectAmountInput,
-          // expectedSetTokenAmount
+          expectedSetTokenAmount
         );
       });
 
@@ -456,7 +495,12 @@ describe("ExchangeIssuance", async () => {
 
       it("should issue the correct amount of Set to the caller", async () => {
         // calculate expected set output
-        const expectedOutput = await getEthAmountOutForIssuance(subjectSetToken, subjectAmountETHInput, subjectUniswapRouter, subjectWethAddress);
+        const expectedOutput = await getIssueSetForExactETH(
+          subjectSetToken,
+          subjectAmountETHInput,
+          subjectUniswapRouter,
+          subjectWethAddress
+        );
         
         // issue tokens
         const initSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
@@ -475,7 +519,12 @@ describe("ExchangeIssuance", async () => {
       });
 
       it("emits a ExchangeIssue log", async () => {
-        const expectedSetTokenAmount = await getEthAmountOutForIssuance(subjectSetToken, subjectAmountETHInput, subjectUniswapRouter, subjectWethAddress);
+        const expectedSetTokenAmount = await getIssueSetForExactETH(
+          subjectSetToken,
+          subjectAmountETHInput,
+          subjectUniswapRouter,
+          subjectWethAddress
+        );
         await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
           subjectCaller.address,
           subjectSetToken.address,
