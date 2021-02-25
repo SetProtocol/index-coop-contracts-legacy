@@ -56,10 +56,22 @@ const getIssueSetForExactETH = async (setToken: SetToken, ethInput: BigNumber, u
 
 const getIssueSetForExactToken = async (setToken: SetToken, inputToken: string, inputAmount: BigNumber, 
   uniswapRouter: UniswapV2Router02, weth: string) => {
-    // get eth amount that can be aquired with inputToken
-    const ethInput = (await uniswapRouter.getAmountsOut(inputAmount, [inputToken, weth]))[1];
-    return await getIssueSetForExactETH(setToken, ethInput, uniswapRouter, weth);
+    
+  // get eth amount that can be aquired with inputToken
+  const ethInput = (await uniswapRouter.getAmountsOut(inputAmount, [inputToken, weth]))[1];
+  return await getIssueSetForExactETH(setToken, ethInput, uniswapRouter, weth);
+}
+
+const getIssueExactSetFromETH = async (setToken: SetToken, amountSet: BigNumber, uniswapRouter: UniswapV2Router02, weth: string) => {
+  const components = await setToken.getComponents();
+  let sumEth = BigNumber.from(0);
+  for (let i = 0; i < components.length; i++) {
+    const componentAmount = amountSet.mul(await setToken.getDefaultPositionRealUnit(components[i]));
+    const ethAmount = (await uniswapRouter.getAmountsIn(componentAmount, [weth, components[i]]))[0];
+    sumEth = sumEth.add(ethAmount);
   }
+  return sumEth;
+}
 
 describe("ExchangeIssuance", async () => {
   let owner: Account;
@@ -629,53 +641,53 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#issueExactSetFromETH", async () => {
-      let subjectCaller: Address;
-      let subjectSetToken: Address;
+      let subjectCaller: Account;
+      let subjectSetToken: SetToken;
       let subjectAmountETHInput: BigNumber;
       let subjectAmountSetToken: BigNumber;
 
       beforeEach(async () => {
-        // Deploy any required dependencies
-
-        // subjectSetToken = ?
-        // subjectAmountETHInput = ?
-        // subjectAmountSetToken = ?
+        subjectCaller = user;
+        subjectSetToken = setToken;
+        subjectAmountSetToken = ether(1000);
+        subjectAmountETHInput = ether(10);
       });
 
       async function subject(): Promise<ContractTransaction> {
-        return await exchangeIssuance.issuesExactSetFromETH(
-          subjectSetToken,
+        await exchangeIssuance.approveSetToken(setToken.address);
+        return await exchangeIssuance.connect(subjectCaller.wallet).issueExactSetFromETH(
+          subjectSetToken.address,
           subjectAmountSetToken,
           { value: subjectAmountSetToken }
         );
       }
 
       it("should issue the correct amount of Set to the caller", async () => {
-        // What state do you want to record before the test is run? (balance of the user of the Set)
-
+        const initSetAmount = await subjectSetToken.balanceOf(subjectCaller.address);
         await subject();
-
-        // What state do you want to verify against? (difference in the balance of the Set equals subjectAmountSetToken)
+        const finalSetAmount = await subjectSetToken.balanceOf(subjectCaller.address);
+        
+        expect(subjectAmountSetToken).to.eq(finalSetAmount.sub(initSetAmount));
       });
 
       it("should use the correct amount of ether from the caller", async () => {
-        // What state do you want to record before the test is run? (ether balance of the caller)
+        const expectedCost = await getIssueExactSetFromETH(subjectSetToken, subjectAmountSetToken, subjectUniswapRouter, weth.address);
 
+        const initEthBalance = await user.wallet.getBalance();
         await subject();
+        const finalEthBalance = await user.wallet.getBalance();
 
-        // Note: bot input amount and return amount need to be taken into account.
-        // What state do you want to verify against? (ether balance of the caller)
+        expect(expectedCost).to.eq(initEthBalance.sub(finalEthBalance));
       });
 
       it("emits a ExchangeIssue log", async () => {
-        // const expectedSetTokenAmount = calculate expected set token amount
-
+        const expectedCost = await getIssueExactSetFromETH(subjectSetToken, subjectAmountSetToken, subjectUniswapRouter, weth.address);
         await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
-          subjectCaller,
-          subjectSetToken,
-          // ether_address,
-          subjectAmountETHInput,
-          subjectAmountSetToken
+          subjectCaller.address,
+          subjectSetToken.address,
+          ETH_ADDRESS,
+          expectedCost,
+          subjectSetToken
         );
       });
 
