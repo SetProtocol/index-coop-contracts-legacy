@@ -1,8 +1,8 @@
 import "module-alias/register";
 
-import { solidityKeccak256 } from "ethers/lib/utils";
+import { formatEther, parseEther, solidityKeccak256 } from "ethers/lib/utils";
 import { Address, Account } from "@utils/types";
-import { ADDRESS_ZERO, ZERO, ONE_DAY_IN_SECONDS, ONE_YEAR_IN_SECONDS, MAX_UINT_256, MAX_UINT_96 } from "@utils/constants";
+import { ADDRESS_ZERO, ZERO, ONE_DAY_IN_SECONDS, ONE_YEAR_IN_SECONDS, MAX_UINT_256, MAX_UINT_96, MAX_INT_256, ETH_ADDRESS } from "@utils/constants";
 import { ExchangeIssuance, StandardTokenMock, UniswapV2Router02, WETH9 } from "@utils/contracts/index";
 import { Controller, SetToken } from "@utils/contracts/setV2";
 import DeployHelper from "@utils/deploys";
@@ -22,10 +22,39 @@ import {
 } from "@utils/index";
 import { SetFixture } from "@utils/fixtures";
 import { UniswapFixture } from "@utils/fixtures";
-import { BigNumber, ContractTransaction, utils } from "ethers";
-import { use } from "chai";
+import { BigNumber, ContractTransaction } from "ethers";
+import { ethers } from "hardhat";
+
+const erc20ABI = require("./erc20abi.json");
 
 const expect = getWaffleExpect();
+
+const getEthAmountOutForIssuance = async (setToken: SetToken, ethInput: BigNumber, uniswapRouter: UniswapV2Router02, weth: string) => {
+  let sumEth = BigNumber.from(0);
+  const amountEthForComponents = [];
+  const components = await setToken.getComponents();
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i];
+    const unit = await setToken.getDefaultPositionRealUnit(component);
+    sumEth = sumEth.add((await uniswapRouter.getAmountsIn(unit, [weth, component]))[0]);
+    const amountEthForComponent = (await uniswapRouter.getAmountsIn(unit, [weth, component]))[0];
+    amountEthForComponents.push(amountEthForComponent);
+  }
+
+  let expectedOutput: BigNumber = MAX_UINT_256;
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i];
+    const unit = await setToken.getDefaultPositionRealUnit(component);
+    const scaledEth = amountEthForComponents[i].mul(ethInput).div(sumEth);
+    const amountComponentOut = (await uniswapRouter.getAmountsOut(scaledEth, [weth, component]))[1];
+    
+    const potentialSetTokenOut = amountComponentOut.mul(ether(1)).div(unit);
+    if (potentialSetTokenOut.lt(expectedOutput)) {
+      expectedOutput = potentialSetTokenOut;
+    }
+  };
+  return expectedOutput;
+}
 
 describe("ExchangeIssuance", async () => {
   let owner: Account;
@@ -50,9 +79,10 @@ describe("ExchangeIssuance", async () => {
 
     setToken = await setV2Setup.createSetToken(
       [setV2Setup.dai.address, setV2Setup.wbtc.address],
-      [ether(0.5), ether(0.5)],
-      [setV2Setup.debtIssuanceModule.address, setV2Setup.streamingFeeModule.address]
+      [ether(0.5), BigNumber.from(10).pow(8)],
+      [setV2Setup.issuanceModule.address, setV2Setup.streamingFeeModule.address]
     );
+    setV2Setup.issuanceModule.initialize(setToken.address, ADDRESS_ZERO);
   });
 
   addSnapshotBeforeRestoreAfterEach();
@@ -166,7 +196,6 @@ describe("ExchangeIssuance", async () => {
 
       uniswapSetup = await getUniswapFixture(owner.address);
       await uniswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
-
       sushiswapSetup = await getUniswapFixture(owner.address);
       await sushiswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
 
@@ -177,6 +206,29 @@ describe("ExchangeIssuance", async () => {
       subjectSushiswapRouter = sushiswapSetup.router;
       subjectControllerAddress = setV2Setup.controller.address;
       subjectBasicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
+
+      await uniswapSetup.createNewPair(weth.address, wbtc.address);
+      await uniswapSetup.createNewPair(weth.address, dai.address);
+      await wbtc.approve(subjectUniswapRouter.address, MAX_UINT_256);
+      await subjectUniswapRouter.connect(owner.wallet).addLiquidityETH(
+        wbtc.address, 
+        ether(1),
+        MAX_UINT_256,
+        MAX_UINT_256, 
+        owner.address,
+        (await getLastBlockTimestamp()).add(1),
+        { value: ether(100), gasLimit: 9000000 }
+      );
+      await dai.approve(subjectUniswapRouter.address, MAX_INT_256);
+      await subjectUniswapRouter.connect(owner.wallet).addLiquidityETH(
+        dai.address, 
+        ether(100000), 
+        MAX_UINT_256, 
+        MAX_UINT_256, 
+        owner.address, 
+        (await getLastBlockTimestamp()).add(1),
+        { value: ether(100), gasLimit: 9000000 }
+      );
       
       exchangeIssuance = await deployer.adapters.deployExchangeIssuance(
         subjectWethAddress,
@@ -222,7 +274,6 @@ describe("ExchangeIssuance", async () => {
 
       beforeEach(async () => {
         subjectTokensToApprove = [setV2Setup.dai, setV2Setup.wbtc]
-        
       });
 
       async function subject(): Promise<ContractTransaction> {
@@ -325,10 +376,10 @@ describe("ExchangeIssuance", async () => {
       beforeEach(async () => {
         // Deploy any required dependencies
 
-        // subjectSetToken = ?
-        // subjectInputToken = ?
-        // subjectAmountInput = ?
-        // subjectMinSetReceive = ?
+        subjectSetToken = ""
+        subjectInputToken = ""
+        subjectAmountInput = ether(100)
+        subjectMinSetReceive = ether(0);
       });
 
       async function subject(): Promise<ContractTransaction> {
@@ -390,51 +441,47 @@ describe("ExchangeIssuance", async () => {
       beforeEach(async () => {
         subjectSetToken = setToken;
         subjectCaller = user;
-        subjectAmountETHInput = ether(100);
+        subjectAmountETHInput = ether(1);
         subjectMinSetReceive = ether(0);
       });
 
       async function subject(): Promise<ContractTransaction> {
+        await exchangeIssuance.approveSetToken(subjectSetToken.address);
         return await exchangeIssuance.connect(subjectCaller.wallet).issueSetForExactETH(
           subjectSetToken.address,
           subjectMinSetReceive,
-          { value: subjectAmountETHInput }
+          { value: subjectAmountETHInput, gasPrice: 0 }
         );
       }
 
       it("should issue the correct amount of Set to the caller", async () => {
+        // calculate expected set output
+        const expectedOutput = await getEthAmountOutForIssuance(subjectSetToken, subjectAmountETHInput, subjectUniswapRouter, subjectWethAddress);
+        
+        // issue tokens
         const initSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
-
         await subject();
-
         const finalSetBalance = await subjectSetToken.balanceOf(subjectCaller.address);
 
-        // calculate expected set output
-        (await subjectSetToken.getComponents()).forEach(async component => {
-          const unit = await subjectSetToken.getDefaultPositionRealUnit(component);
-          let amountEthToSpend = subjectAmountETHInput.mul(unit).div(ether(1));
-          subjectUniswapRouter
-        });
+        expect(expectedOutput).to.eq(finalSetBalance.sub(initSetBalance));
       });
 
       it("should use the correct amount of ether from the caller", async () => {
-        // What state do you want to record before the test is run? (ether balance of the caller)
-
+        const initEthBalance = await user.wallet.getBalance();
         await subject();
+        const finalEthBalance = await user.wallet.getBalance();
 
-        // What state do you want to verify against? (ether balance of the caller)
-        // Was this the expected amount?
+        expect(subjectAmountETHInput).to.eq((await initEthBalance).sub(finalEthBalance))
       });
 
       it("emits a ExchangeIssue log", async () => {
-        // const expectedSetTokenAmount = calculate expected set token amount
-
+        const expectedSetTokenAmount = await getEthAmountOutForIssuance(subjectSetToken, subjectAmountETHInput, subjectUniswapRouter, subjectWethAddress);
         await expect(subject()).to.emit(exchangeIssuance, "ExchangeIssue").withArgs(
-          subjectCaller,
-          subjectSetToken,
-          // ethAddress, (should we fetch the eth address from the contract)
+          subjectCaller.address,
+          subjectSetToken.address,
+          ETH_ADDRESS,
           subjectAmountETHInput,
-          // expectedSetTokenAmount
+          expectedSetTokenAmount
         );
       });
 

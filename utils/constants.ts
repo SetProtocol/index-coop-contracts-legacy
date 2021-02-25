@@ -4,6 +4,7 @@ import { BigNumber } from "@ethersproject/bignumber";
 const { AddressZero, MaxUint256, One, Two, Zero } = constants;
 
 export const ADDRESS_ZERO = AddressZero;
+export const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 export const EMPTY_BYTES = "0x";
 export const ZERO_BYTES = "0x0000000000000000000000000000000000000000000000000000000000000000";
 export const MAX_UINT_256: BigNumber = MaxUint256;
