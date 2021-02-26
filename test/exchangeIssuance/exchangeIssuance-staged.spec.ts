@@ -87,6 +87,14 @@ const getRedeemExactSetForETH = async (setToken: SetToken, amountSet: BigNumber,
   return sumEth;
 };
 
+const getRedeemExactSetForToken = async (setToken: SetToken, outputToken: StandardTokenMock,
+  amountSet: BigNumber, uniswapRouter: UniswapV2Router02, weth: string) => {
+
+  const ethOut = await getRedeemExactSetForETH(setToken, amountSet, uniswapRouter, weth);
+  const tokenOut = (await uniswapRouter.getAmountsOut(ethOut, [weth, outputToken.address]))[1];
+  return tokenOut;
+};
+
 describe("ExchangeIssuance", async () => {
   let owner: Account;
   let user: Account;
@@ -798,6 +806,89 @@ describe("ExchangeIssuance", async () => {
           ETH_ADDRESS,
           subjectAmountSetToken,
           expectedEthReturned
+        );
+      });
+
+      context("when amount Set is 0", async () => {
+        beforeEach(async () => {
+          subjectAmountSetToken = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+    });
+
+    describe("#redeemExactSetForToken", async () => {
+      let subjectCaller: Account;
+      let subjectSetToken: SetToken;
+      let subjectAmountSetToken: BigNumber;
+      let subjectOutputToken: StandardTokenMock;
+      let subjectMinTokenReceived: BigNumber;
+
+      beforeEach(async () => {
+        subjectCaller = user;
+        subjectSetToken = setToken;
+        subjectAmountSetToken = ether(100);
+        subjectOutputToken = usdc;
+        subjectMinTokenReceived = ether(0);
+
+        // acquire set tokens to redeem
+        await setV2Setup.approveAndIssueSetToken(subjectSetToken, subjectAmountSetToken, subjectCaller.address);
+      });
+
+      async function subject(): Promise<ContractTransaction> {
+        await exchangeIssuance.approveSetToken(subjectSetToken.address);
+        await subjectSetToken.connect(subjectCaller.wallet).approve(exchangeIssuance.address, MAX_UINT_256, { gasPrice: 0 });
+        return await exchangeIssuance.connect(subjectCaller.wallet).redeemExactSetForToken(
+          subjectSetToken.address,
+          subjectOutputToken.address,
+          subjectAmountSetToken,
+          subjectMinTokenReceived,
+          { gasPrice: 0 }
+        );
+      }
+
+      it("should redeem the correct amount of a set to the caller", async () => {
+        const initSetAmount = await subjectSetToken.balanceOf(subjectCaller.address);
+        await subject();
+        const finalSetAmount = await subjectSetToken.balanceOf(subjectCaller.address);
+
+        expect(subjectAmountSetToken).to.eq(initSetAmount.sub(finalSetAmount));
+      });
+
+      it("should return the correct amount of output token to the caller", async () => {
+        const expectedTokensReturned = await getRedeemExactSetForToken(
+          subjectSetToken,
+          subjectOutputToken,
+          subjectAmountSetToken,
+          subjectUniswapRouter,
+          weth.address
+        );
+
+        const initTokenBalance = await subjectOutputToken.balanceOf(subjectCaller.address);
+        await subject();
+        const finalTokenBalance = await subjectOutputToken.balanceOf(subjectCaller.address);
+
+        expect(expectedTokensReturned).to.eq(finalTokenBalance.sub(initTokenBalance));
+      });
+
+      it("emits an ExchangeRedeem log", async () => {
+        const expectedTokensReturned = await getRedeemExactSetForToken(
+          subjectSetToken,
+          subjectOutputToken,
+          subjectAmountSetToken,
+          subjectUniswapRouter,
+          weth.address
+        );
+
+        await expect(subject()).to.emit(exchangeIssuance, "ExchangeRedeem").withArgs(
+          subjectCaller.address,
+          subjectSetToken.address,
+          subjectOutputToken.address,
+          subjectAmountSetToken,
+          expectedTokensReturned
         );
       });
 
