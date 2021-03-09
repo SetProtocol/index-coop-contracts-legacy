@@ -2,7 +2,7 @@ import "module-alias/register";
 
 import { Address, Account } from "@utils/types";
 import { ADDRESS_ZERO, ZERO, MAX_UINT_256, MAX_UINT_96, MAX_INT_256, ETH_ADDRESS } from "@utils/constants";
-import { ExchangeIssuance, StandardTokenMock, UniswapV2Router02, WETH9 } from "@utils/contracts/index";
+import { ExchangeIssuance, StandardTokenMock, UniswapV2Factory, UniswapV2Router02, WETH9 } from "@utils/contracts/index";
 import { SetToken } from "@utils/contracts/setV2";
 import DeployHelper from "@utils/deploys";
 import {
@@ -80,9 +80,9 @@ describe("ExchangeIssuance", async () => {
 
   describe("#constructor", async () => {
     let wethAddress: Address;
-    let uniswapFactory: Address;
+    let uniswapFactory: UniswapV2Factory;
     let uniswapRouter: UniswapV2Router02;
-    let sushiswapFactory: Address;
+    let sushiswapFactory: UniswapV2Factory;
     let sushiswapRouter: UniswapV2Router02;
     let controllerAddress: Address;
     let basicIssuanceModuleAddress: Address;
@@ -103,9 +103,9 @@ describe("ExchangeIssuance", async () => {
       sushiswapSetup = getUniswapFixture(owner.address);
       await sushiswapSetup.initialize(owner, wethAddress, wbtcAddress, daiAddress);
 
-      uniswapFactory = uniswapSetup.factory.address;
+      uniswapFactory = uniswapSetup.factory;
       uniswapRouter = uniswapSetup.router;
-      sushiswapFactory = sushiswapSetup.factory.address;
+      sushiswapFactory = sushiswapSetup.factory;
       sushiswapRouter = sushiswapSetup.router;
       controllerAddress = setV2Setup.controller.address;
       basicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
@@ -114,9 +114,9 @@ describe("ExchangeIssuance", async () => {
     async function subject(): Promise<ExchangeIssuance> {
       return await deployer.adapters.deployExchangeIssuance(
         wethAddress,
-        uniswapFactory,
+        uniswapFactory.address,
         uniswapRouter.address,
-        sushiswapFactory,
+        sushiswapFactory.address,
         sushiswapRouter.address,
         controllerAddress,
         basicIssuanceModuleAddress
@@ -133,13 +133,13 @@ describe("ExchangeIssuance", async () => {
       expect(expectedUniRouterAddress).to.eq(uniswapRouter.address);
 
       const expectedUniFactoryAddress = await exchangeIssuanceContract.uniFactory();
-      expect(expectedUniFactoryAddress).to.eq(uniswapFactory);
+      expect(expectedUniFactoryAddress).to.eq(uniswapFactory.address);
 
       const expectedSushiRouterAddress = await exchangeIssuanceContract.sushiRouter();
       expect(expectedSushiRouterAddress).to.eq(sushiswapRouter.address);
 
       const expectedSushiFactoryAddress = await exchangeIssuanceContract.sushiFactory();
-      expect(expectedSushiFactoryAddress).to.eq(sushiswapFactory);
+      expect(expectedSushiFactoryAddress).to.eq(sushiswapFactory.address);
 
       const expectedControllerAddress = await exchangeIssuanceContract.setController();
       expect(expectedControllerAddress).to.eq(controllerAddress);
@@ -163,9 +163,9 @@ describe("ExchangeIssuance", async () => {
 
   context("when exchange issuance is deployed", async () => {
     let subjectWethAddress: Address;
-    let uniswapFactory: Address;
+    let uniswapFactory: UniswapV2Factory;
     let uniswapRouter: UniswapV2Router02;
-    let sushiswapFactory: Address;
+    let sushiswapFactory: UniswapV2Factory;
     let sushiswapRouter: UniswapV2Router02;
     let controllerAddress: Address;
     let basicIssuanceModuleAddress: Address;
@@ -204,9 +204,9 @@ describe("ExchangeIssuance", async () => {
       await sushiswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
 
       subjectWethAddress = weth.address;
-      uniswapFactory = uniswapSetup.factory.address;
+      uniswapFactory = uniswapSetup.factory;
       uniswapRouter = uniswapSetup.router;
-      sushiswapFactory = sushiswapSetup.factory.address;
+      sushiswapFactory = sushiswapSetup.factory;
       sushiswapRouter = sushiswapSetup.router;
       controllerAddress = setV2Setup.controller.address;
       basicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
@@ -250,9 +250,9 @@ describe("ExchangeIssuance", async () => {
 
       exchangeIssuance = await deployer.adapters.deployExchangeIssuance(
         subjectWethAddress,
-        uniswapFactory,
+        uniswapFactory.address,
         uniswapRouter.address,
-        sushiswapFactory,
+        sushiswapFactory.address,
         sushiswapRouter.address,
         controllerAddress,
         basicIssuanceModuleAddress
