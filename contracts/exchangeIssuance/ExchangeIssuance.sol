@@ -28,8 +28,7 @@ import { IController } from "../interfaces/IController.sol";
 import { ISetToken } from "../interfaces/ISetToken.sol";
 import { IWETH } from "../interfaces/IWETH.sol";
 import { PreciseUnitMath } from "../lib/PreciseUnitMath.sol";
-import { SushiswapV2Library } from "../../external/contracts/SushiswapV2Library.sol";
-import { UniswapV2Library } from "../../external/contracts/uniswap/lib/UniswapV2Library.sol";
+import { UniSushiV2Library } from "../../external/contracts/UniSushiV2Library.sol";
 
 
 /**
@@ -460,11 +459,13 @@ contract ExchangeIssuance is ReentrancyGuard {
             // if exchange[i] is Exchange.None then amountTokenOut remains equal to scaledAmountEth
             uint256 amountTokenOut = scaledAmountEth;
             if (exchanges[i] == Exchange.Uniswap) {
-                (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, WETH, components[i]);
-                amountTokenOut = UniswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
+                address uniswapPair = _getPair(uniFactory, WETH, components[i]);
+                (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(uniswapPair, WETH, components[i]);
+                amountTokenOut = UniSushiV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             } else if (exchanges[i] == Exchange.Uniswap) {
-                (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, WETH, components[i]);
-                amountTokenOut = SushiswapV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
+                address sushiswapPair = _getPair(sushiFactory, WETH, components[i]);
+                (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(sushiswapPair, WETH, components[i]);
+                amountTokenOut = UniSushiV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
             }
             
             maxIndexAmount = Math.min(amountTokenOut.preciseDiv(amountComponents[i]), maxIndexAmount);
@@ -810,19 +811,21 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 uniTokenIn = maxIn;
         uint256 sushiTokenIn = maxIn;
         
-        if (_pairAvailable(uniFactory, _tokenA, _tokenB)) {
-            (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
+        address uniswapPair = _getPair(uniFactory, _tokenA, _tokenB);
+        if(uniswapPair != address(0)) {
+            (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(uniswapPair, _tokenA, _tokenB);
             // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
             if(reserveOut > _amountOut) {
-                uniTokenIn = UniswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+                uniTokenIn = UniSushiV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
             }
         }
         
-        if (_pairAvailable(sushiFactory, _tokenA, _tokenB)) {
-            (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
+        address sushiswapPair = _getPair(sushiFactory, _tokenA, _tokenB);
+        if(sushiswapPair != address(0)) {
+            (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(sushiswapPair, _tokenA, _tokenB);
             // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
             if(reserveOut > _amountOut) {
-                sushiTokenIn = SushiswapV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
+                sushiTokenIn = UniSushiV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
             }
         }
         
@@ -850,14 +853,16 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 uniTokenOut = 0;
         uint256 sushiTokenOut = 0;
         
-        if(_pairAvailable(uniFactory, _tokenA, _tokenB)) {
-            (uint256 reserveIn, uint256 reserveOut) = UniswapV2Library.getReserves(uniFactory, _tokenA, _tokenB);
-            uniTokenOut = UniswapV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
+        address uniswapPair = _getPair(uniFactory, _tokenA, _tokenB);
+        if(uniswapPair != address(0)) {
+            (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(uniswapPair, _tokenA, _tokenB);
+            uniTokenOut = UniSushiV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
         }
         
-        if(_pairAvailable(sushiFactory, _tokenA, _tokenB)) {
-            (uint256 reserveIn, uint256 reserveOut) = SushiswapV2Library.getReserves(sushiFactory, _tokenA, _tokenB);
-            sushiTokenOut = SushiswapV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
+        address sushiswapPair = _getPair(sushiFactory, _tokenA, _tokenB);
+        if(sushiswapPair != address(0)) {
+            (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(sushiswapPair, _tokenA, _tokenB);
+            sushiTokenOut = UniSushiV2Library.getAmountOut(_amountIn, reserveIn, reserveOut);
         }
         
         // Fails if both the values are 0
@@ -866,16 +871,16 @@ contract ExchangeIssuance is ReentrancyGuard {
     }
     
     /**
-     * Checks if a pair is available on the given DEX.
+     * Returns the pair address for on a given DEX.
      *
-     * @param _factory   The factory to use (can be either uniFactory or sushiFactory)
-     * @param _tokenA    The address of the tokenA
-     * @param _tokenB    The address of the tokenB
+     * @param _factory   The factory to address
+     * @param _tokenA    The address of tokenA
+     * @param _tokenB    The address of tokenB
      *
-     * @return           A boolean representing if the token is available
+     * @return           The pair address (Note: address(0) is returned by default if the pair is not available on that DEX)
      */
-    function _pairAvailable(address _factory, address _tokenA, address _tokenB) internal view returns (bool) {
-        return IUniswapV2Factory(_factory).getPair(_tokenA, _tokenB) != address(0);
+    function _getPair(address _factory, address _tokenA, address _tokenB) internal view returns (address) {
+        return IUniswapV2Factory(_factory).getPair(_tokenA, _tokenB);
     }
     
     /**
