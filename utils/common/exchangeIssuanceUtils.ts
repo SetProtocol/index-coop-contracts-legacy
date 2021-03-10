@@ -31,12 +31,7 @@ export const getIssueSetForExactETH = async (setToken: SetToken, ethInput: BigNu
             const uniAmount = hasUniPair ? (await uniswapRouter.getAmountsIn(unit, [weth, component]))[0] : MAX_UINT_256;
             const hasSushiPair = await hasPair(sushiswapFactory, weth, component);
             const sushiAmount = hasSushiPair ? (await sushiswapRouter.getAmountsIn(unit, [weth, component]))[0] : MAX_UINT_256;
-
-            if (uniAmount.lt(sushiAmount)) {
-                amountEthForComponent = uniAmount;
-            } else {
-                amountEthForComponent = sushiAmount;
-            }
+            amountEthForComponent = (uniAmount.lt(sushiAmount)) ? uniAmount : sushiAmount;
         }
 
         amountEthForComponents.push(amountEthForComponent);
@@ -57,12 +52,7 @@ export const getIssueSetForExactETH = async (setToken: SetToken, ethInput: BigNu
             const uniAmount = hasUniPair ? (await uniswapRouter.getAmountsOut(scaledEth, [weth, component]))[1] : BigNumber.from(0);
             const hasSushiPair = await hasPair(sushiswapFactory, weth, component);
             const sushiAmount = hasSushiPair ? (await sushiswapRouter.getAmountsOut(scaledEth, [weth, component]))[1] : BigNumber.from(0);
-
-            if (uniAmount.gt(sushiAmount)) {
-                amountComponentOut = uniAmount;
-            } else {
-                amountComponentOut = sushiAmount;
-            }
+            amountComponentOut = (uniAmount.gt(sushiAmount)) ? uniAmount : sushiAmount;
         }
 
         const potentialSetTokenOut = amountComponentOut.mul(ether(1)).div(unit);
@@ -137,12 +127,7 @@ export const getRedeemExactSetForETH = async (setToken: SetToken, amountSet: Big
             const uniAmount = hasUniPair ? (await uniswapRouter.getAmountsOut(componentAmount, [components[i], weth]))[1] : BigNumber.from(0);
             const hasSushiPair = await hasPair(sushiswapFactory, weth, components[i]);
             const sushiAmount = hasSushiPair ? (await sushiswapRouter.getAmountsOut(componentAmount, [components[i], weth]))[1] : BigNumber.from(0);
-
-            if (sushiAmount.gt(uniAmount)) {
-                ethAmount = sushiAmount;
-            } else {
-                ethAmount = uniAmount;
-            }
+            ethAmount = (sushiAmount.gt(uniAmount)) ? sushiAmount : uniAmount;
         } else {
             ethAmount = componentAmount;
         }
