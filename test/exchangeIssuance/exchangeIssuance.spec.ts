@@ -211,12 +211,12 @@ describe("ExchangeIssuance", async () => {
       controllerAddress = setV2Setup.controller.address;
       basicIssuanceModuleAddress = setV2Setup.issuanceModule.address;
 
-      await uniswapSetup.createNewPair(weth.address, wbtc.address);
+      await sushiswapSetup.createNewPair(weth.address, wbtc.address);
       await uniswapSetup.createNewPair(weth.address, dai.address);
       await uniswapSetup.createNewPair(weth.address, usdc.address);
 
-      await wbtc.approve(uniswapRouter.address, MAX_UINT_256);
-      await uniswapRouter.connect(owner.wallet).addLiquidityETH(
+      await wbtc.approve(sushiswapRouter.address, MAX_UINT_256);
+      await sushiswapRouter.connect(owner.wallet).addLiquidityETH(
         wbtc.address,
         UnitsUtils.wbtc(100000),
         MAX_UINT_256,
@@ -417,6 +417,9 @@ describe("ExchangeIssuance", async () => {
           subjectInputToken.address,
           subjectAmountInput,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -443,6 +446,9 @@ describe("ExchangeIssuance", async () => {
           subjectInputToken.address,
           subjectAmountInput,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -470,6 +476,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken.address,
             subjectAmountInput,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -496,6 +505,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken.address,
             subjectAmountInput,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -559,6 +571,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountETHInput,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           subjectWethAddress
         );
 
@@ -584,6 +599,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountETHInput,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           subjectWethAddress
         );
 
@@ -674,6 +692,9 @@ describe("ExchangeIssuance", async () => {
           subjectMaxAmountInput,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -701,6 +722,9 @@ describe("ExchangeIssuance", async () => {
           subjectMaxAmountInput,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -747,6 +771,9 @@ describe("ExchangeIssuance", async () => {
             subjectMaxAmountInput,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -774,6 +801,9 @@ describe("ExchangeIssuance", async () => {
             subjectMaxAmountInput,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -867,6 +897,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -882,6 +915,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -979,6 +1015,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -994,6 +1033,9 @@ describe("ExchangeIssuance", async () => {
           subjectSetToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -1078,6 +1120,9 @@ describe("ExchangeIssuance", async () => {
           subjectOutputToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -1094,6 +1139,9 @@ describe("ExchangeIssuance", async () => {
           subjectOutputToken,
           subjectAmountSetToken,
           uniswapRouter,
+          uniswapFactory,
+          sushiswapRouter,
+          sushiswapFactory,
           weth.address
         );
 
@@ -1133,6 +1181,9 @@ describe("ExchangeIssuance", async () => {
             subjectOutputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -1149,6 +1200,9 @@ describe("ExchangeIssuance", async () => {
             subjectOutputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
 
@@ -1215,6 +1269,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken.address,
             subjectAmountInput,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualSetOutput = await subject();
@@ -1234,6 +1291,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken.address,
             subjectAmountInput,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualSetOutput = await subject();
@@ -1253,6 +1313,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken.address,
             subjectAmountInput,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualSetOutput = await subject();
@@ -1301,6 +1364,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualInputAmount = await subject();
@@ -1320,6 +1386,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualInputAmount = await subject();
@@ -1339,6 +1408,9 @@ describe("ExchangeIssuance", async () => {
             subjectInputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualInputAmount = await subject();
@@ -1397,6 +1469,9 @@ describe("ExchangeIssuance", async () => {
             subjectOutputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualOutputAmount = await subject();
@@ -1416,6 +1491,9 @@ describe("ExchangeIssuance", async () => {
             subjectOutputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualOutputAmount = await subject();
@@ -1435,6 +1513,9 @@ describe("ExchangeIssuance", async () => {
             subjectOutputToken,
             subjectAmountSetToken,
             uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
             weth.address
           );
           const actualOutputAmount = await subject();

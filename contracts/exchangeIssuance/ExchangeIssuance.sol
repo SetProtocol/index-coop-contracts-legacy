@@ -462,7 +462,7 @@ contract ExchangeIssuance is ReentrancyGuard {
                 address uniswapPair = _getPair(uniFactory, WETH, components[i]);
                 (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(uniswapPair, WETH, components[i]);
                 amountTokenOut = UniSushiV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
-            } else if (exchanges[i] == Exchange.Uniswap) {
+            } else if (exchanges[i] == Exchange.Sushiswap) {
                 address sushiswapPair = _getPair(sushiFactory, WETH, components[i]);
                 (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(sushiswapPair, WETH, components[i]);
                 amountTokenOut = UniSushiV2Library.getAmountOut(scaledAmountEth, reserveIn, reserveOut);
