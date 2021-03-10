@@ -330,7 +330,7 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#approveSetToken", async () => {
-      let subjectSetToApprove: SetToken;
+      let subjectSetToApprove: SetToken | StandardTokenMock;
 
       beforeEach(async () => {
         subjectSetToApprove = setToken;
@@ -353,6 +353,16 @@ describe("ExchangeIssuance", async () => {
           const expectedAllowance = MAX_UINT_96;
           expect(actualAllowance).to.eq(expectedAllowance);
         }
+      });
+
+      context("when the input token is not a set", async () => {
+        beforeEach(async () => {
+          subjectSetToApprove = usdc;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID SET");
+        });
       });
 
       context("when the set contains an external position", async () => {
