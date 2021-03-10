@@ -1,7 +1,7 @@
 import "module-alias/register";
 
 import { Address, Account } from "@utils/types";
-import { ADDRESS_ZERO, ZERO, MAX_UINT_256, MAX_UINT_96, MAX_INT_256, ETH_ADDRESS } from "@utils/constants";
+import { ADDRESS_ZERO, ZERO, MAX_UINT_256, MAX_UINT_96, MAX_INT_256, ETH_ADDRESS, ONE } from "@utils/constants";
 import { ExchangeIssuance, StandardTokenMock, UniswapV2Factory, UniswapV2Router02, WETH9 } from "@utils/contracts/index";
 import { SetToken } from "@utils/contracts/setV2";
 import DeployHelper from "@utils/deploys";
@@ -547,6 +547,16 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
+      context("when required output set token amount is very high", async () => {
+        beforeEach(async () => {
+          subjectMinSetReceive = ether(100000);
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
+        });
+      });
+
       context("when the set token has an illiquid component", async () => {
         beforeEach(async () => {
           subjectSetToken = setTokenIlliquid;
@@ -637,6 +647,16 @@ describe("ExchangeIssuance", async () => {
 
         it("should revert", async () => {
           await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+
+      context("when required output set token amount is very high", async () => {
+        beforeEach(async () => {
+          subjectMinSetReceive = ether(100000);
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
         });
       });
 
@@ -850,6 +870,16 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
+      context("when input token amount is insufficient", async () => {
+        beforeEach(async () => {
+          subjectMaxAmountInput = ONE;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_INPUT_AMOUNT");
+        });
+      });
+
       context("when the set token has an illiquid component", async () => {
         beforeEach(async () => {
           subjectSetToken = setTokenIlliquid;
@@ -963,6 +993,16 @@ describe("ExchangeIssuance", async () => {
 
         it("should revert", async () => {
           await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+
+      context("when input ether amount is insufficient", async () => {
+        beforeEach(async () => {
+          subjectAmountETHInput = ONE;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_INPUT_AMOUNT");
         });
       });
 
@@ -1495,16 +1535,6 @@ describe("ExchangeIssuance", async () => {
         );
       }
 
-      context("when amount Set is 0", async () => {
-        beforeEach(async () => {
-          subjectAmountSetToken = ZERO;
-        });
-
-        it("should revert", async () => {
-          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
-        });
-      });
-
       context("when output is an erc20", async () => {
         beforeEach(async () => {
           subjectOutputToken = usdc;
@@ -1568,6 +1598,16 @@ describe("ExchangeIssuance", async () => {
           const actualOutputAmount = await subject();
 
           expect(expectedOutputAmount).to.eq(actualOutputAmount);
+        });
+      });
+
+      context("when amount Set is 0", async () => {
+        beforeEach(async () => {
+          subjectAmountSetToken = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
         });
       });
 
