@@ -107,7 +107,9 @@ export const getIssueExactSetFromTokenRefund = async (setToken: SetToken, inputT
     sushiswapFactory: UniswapV2Factory, weth: string) => {
 
     const ethCost = await getIssueExactSetFromETH(setToken, amountSet, uniswapRouter, uniswapFactory, sushiswapRouter, sushiswapFactory, weth);
-    const inputEthValue = (inputToken.address == weth) ? ethCost : (await uniswapRouter.getAmountsOut(inputAmount, [inputToken.address, weth]))[1];
+    const inputEthValue = (inputToken.address == weth)
+        ? inputAmount
+        : (await uniswapRouter.getAmountsOut(inputAmount, [inputToken.address, weth]))[1];
     const refundAmount = inputEthValue.sub(ethCost);
 
     return refundAmount;
