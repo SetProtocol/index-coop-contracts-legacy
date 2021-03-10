@@ -1302,6 +1302,16 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
+      context("when amount Set is 0", async () => {
+        beforeEach(async () => {
+          subjectAmountInput = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+
       context("when set contains weth", async () => {
         beforeEach(async () => {
           subjectSetToken = setTokenWithWeth;
@@ -1397,6 +1407,16 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
+      context("when amount Set is 0", async () => {
+        beforeEach(async () => {
+          subjectAmountSetToken = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
+
       context("when set contains weth", async () => {
         beforeEach(async () => {
           subjectSetToken = setTokenWithWeth;
@@ -1448,6 +1468,7 @@ describe("ExchangeIssuance", async () => {
       beforeEach(async () => {
         subjectSetToken = setToken;
         subjectAmountSetToken = ether(100);
+        subjectOutputToken = usdc;
       });
 
       async function subject(): Promise<BigNumber> {
@@ -1457,6 +1478,16 @@ describe("ExchangeIssuance", async () => {
           subjectAmountSetToken
         );
       }
+
+      context("when amount Set is 0", async () => {
+        beforeEach(async () => {
+          subjectAmountSetToken = ZERO;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INVALID INPUTS");
+        });
+      });
 
       context("when output is an erc20", async () => {
         beforeEach(async () => {
