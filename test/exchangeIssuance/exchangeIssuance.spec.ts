@@ -547,7 +547,7 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
-      context("when required output set token amount is very high", async () => {
+      context("when output set token amount is insufficient", async () => {
         beforeEach(async () => {
           subjectMinSetReceive = ether(100000);
         });
@@ -650,7 +650,7 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
-      context("when required output set token amount is very high", async () => {
+      context("when output set token amount is insufficient", async () => {
         beforeEach(async () => {
           subjectMinSetReceive = ether(100000);
         });
@@ -1104,6 +1104,16 @@ describe("ExchangeIssuance", async () => {
         );
       });
 
+      context("when output ether amount is insufficient", async () => {
+        beforeEach(async () => {
+          subjectMinEthReceived = ether(100000);
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
+        });
+      });
+
       context("when amount Set is 0", async () => {
         beforeEach(async () => {
           subjectAmountSetToken = ZERO;
@@ -1133,7 +1143,7 @@ describe("ExchangeIssuance", async () => {
       let subjectCaller: Account;
       let subjectSetToken: SetToken;
       let subjectAmountSetToken: BigNumber;
-      let subjectOutputToken: StandardTokenMock;
+      let subjectOutputToken: StandardTokenMock | WETH9;
       let subjectMinTokenReceived: BigNumber;
 
       beforeEach(async () => {
@@ -1208,6 +1218,62 @@ describe("ExchangeIssuance", async () => {
           subjectAmountSetToken,
           expectedTokensReturned
         );
+      });
+
+      context("when output erc20 token amount is insufficient", async () => {
+        beforeEach(async () => {
+          subjectMinTokenReceived = ether(100000);
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
+        });
+      });
+
+      context("when output erc20 token is weth", async () => {
+        beforeEach(async () => {
+          subjectOutputToken = weth;
+        });
+
+        it("should redeem the correct amount of a set to the caller", async () => {
+          const initialBalanceOfSet = await subjectSetToken.balanceOf(subjectCaller.address);
+
+          await subject();
+
+          const finalBalanceOfSet = await subjectSetToken.balanceOf(subjectCaller.address);
+          const expectedBalance = initialBalanceOfSet.sub(subjectAmountSetToken);
+          expect(finalBalanceOfSet).to.eq(expectedBalance);
+        });
+
+        it("should return the correct amount of output token to the caller", async () => {
+          const initialBalanceOfToken = await subjectOutputToken.balanceOf(subjectCaller.address);
+          const expectedTokensReturned = await getRedeemExactSetForToken(
+            subjectSetToken,
+            subjectOutputToken,
+            subjectAmountSetToken,
+            uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
+            weth.address
+          );
+
+          await subject();
+
+          const finalTokenBalance = await subjectOutputToken.balanceOf(subjectCaller.address);
+          const expectedBalance = initialBalanceOfToken.add(expectedTokensReturned);
+          expect(finalTokenBalance).to.eq(expectedBalance);
+        });
+
+        context("when output erc20 token amount is insufficient", async () => {
+          beforeEach(async () => {
+            subjectMinTokenReceived = ether(100000);
+          });
+
+          it("should revert", async () => {
+            await expect(subject()).to.be.revertedWith("ExchangeIssuance: INSUFFICIENT_OUTPUT_AMOUNT");
+          });
+        });
       });
 
       context("when set contains weth", async () => {
