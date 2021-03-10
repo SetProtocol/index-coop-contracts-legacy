@@ -215,8 +215,9 @@ describe("ExchangeIssuance", async () => {
       await uniswapSetup.createNewPair(weth.address, dai.address);
       await uniswapSetup.createNewPair(weth.address, usdc.address);
 
-      await wbtc.approve(sushiswapRouter.address, MAX_UINT_256);
-      await sushiswapRouter.connect(owner.wallet).addLiquidityETH(
+      // ETH-WBTC pools
+      await wbtc.approve(uniswapRouter.address, MAX_UINT_256);
+      await uniswapRouter.connect(owner.wallet).addLiquidityETH(
         wbtc.address,
         UnitsUtils.wbtc(100000),
         MAX_UINT_256,
@@ -226,6 +227,19 @@ describe("ExchangeIssuance", async () => {
         { value: ether(100), gasLimit: 9000000 }
       );
 
+      // cheaper wbtc compared to uniswap
+      await wbtc.approve(sushiswapRouter.address, MAX_UINT_256);
+      await sushiswapRouter.connect(owner.wallet).addLiquidityETH(
+        wbtc.address,
+        UnitsUtils.wbtc(200000),
+        MAX_UINT_256,
+        MAX_UINT_256,
+        owner.address,
+        (await getLastBlockTimestamp()).add(1),
+        { value: ether(100), gasLimit: 9000000 }
+      );
+
+      // ETH-DAI pools
       await dai.approve(uniswapRouter.address, MAX_INT_256);
       await uniswapRouter.connect(owner.wallet).addLiquidityETH(
         dai.address,
@@ -237,6 +251,7 @@ describe("ExchangeIssuance", async () => {
         { value: ether(10), gasLimit: 9000000 }
       );
 
+      // ETH-USDC pools
       await usdc.connect(owner.wallet).approve(uniswapRouter.address, MAX_INT_256);
       await uniswapRouter.connect(owner.wallet).addLiquidityETH(
         usdc.address,
@@ -260,6 +275,7 @@ describe("ExchangeIssuance", async () => {
     });
 
     describe("#approveToken", async () => {
+
       let subjectTokenToApprove: StandardTokenMock;
 
       beforeEach(async () => {
