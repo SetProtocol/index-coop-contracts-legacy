@@ -1201,6 +1201,21 @@ describe("ExchangeIssuance", async () => {
           await expect(subject()).to.be.revertedWith("ExchangeIssuance: ILLIQUID_SET_COMPONENT");
         });
       });
+
+      context("when there is not enough liquidity to issue required amount (on sushi)", async () => {
+        beforeEach(async () => {
+          subjectSetToken = await setV2Setup.createSetToken(
+            [setV2Setup.wbtc.address],
+            [UnitsUtils.wbtc(1)],
+            [setV2Setup.issuanceModule.address, setV2Setup.streamingFeeModule.address]
+          );
+          subjectAmountSetToken = ether(10 ** 10);
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: ILLIQUID_SET_COMPONENT");
+        });
+      });
     });
 
     describe("#redeemExactSetForETH", async () => {

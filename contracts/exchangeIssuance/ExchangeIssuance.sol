@@ -812,19 +812,19 @@ contract ExchangeIssuance is ReentrancyGuard {
         uint256 sushiTokenIn = maxIn;
         
         address uniswapPair = _getPair(uniFactory, _tokenA, _tokenB);
-        if(uniswapPair != address(0)) {
+        if (uniswapPair != address(0)) {
             (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(uniswapPair, _tokenA, _tokenB);
             // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
-            if(reserveOut > _amountOut) {
+            if (reserveOut > _amountOut) {
                 uniTokenIn = UniSushiV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
             }
         }
         
         address sushiswapPair = _getPair(sushiFactory, _tokenA, _tokenB);
-        if(sushiswapPair != address(0)) {
+        if (sushiswapPair != address(0)) {
             (uint256 reserveIn, uint256 reserveOut) = UniSushiV2Library.getReserves(sushiswapPair, _tokenA, _tokenB);
             // Prevent subtraction overflow by making sure pool reserves are greater than swap amount
-            if(reserveOut > _amountOut) {
+            if (reserveOut > _amountOut) {
                 sushiTokenIn = UniSushiV2Library.getAmountIn(_amountOut, reserveIn, reserveOut);
             }
         }
