@@ -683,7 +683,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(_components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
 
             // Get minimum amount of ETH to be spent to acquire the required amount of SetToken component
@@ -723,7 +723,7 @@ contract ExchangeIssuance is ReentrancyGuard {
             // Check that the component does not have external positions
             require(
                 _setToken.getExternalPositionModules(_components[i]).length == 0,
-                "Exchange Issuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
+                "ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED"
             );
             
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(_components[i]));

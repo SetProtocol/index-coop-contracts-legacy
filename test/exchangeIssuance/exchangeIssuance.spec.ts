@@ -177,6 +177,7 @@ describe("ExchangeIssuance", async () => {
     let usdc: StandardTokenMock;
     let illiquidToken: StandardTokenMock;
     let setTokenIlliquid: SetToken;
+    let setTokenExternal: SetToken;
 
     beforeEach(async () => {
       let uniswapSetup: UniswapFixture;
@@ -199,6 +200,23 @@ describe("ExchangeIssuance", async () => {
         [setV2Setup.issuanceModule.address, setV2Setup.streamingFeeModule.address]
       );
       await setV2Setup.issuanceModule.initialize(setTokenIlliquid.address, ADDRESS_ZERO);
+
+      setTokenExternal = await setV2Setup.createSetToken(
+        [setV2Setup.dai.address],
+        [ether(0.5)],
+        [setV2Setup.issuanceModule.address, setV2Setup.streamingFeeModule.address]
+      );
+      await setV2Setup.issuanceModule.initialize(setTokenExternal.address, ADDRESS_ZERO);
+
+      const controller = setV2Setup.controller;
+      await controller.addModule(externalPositionModule.address);
+      await setTokenExternal.addModule(externalPositionModule.address);
+      await setTokenExternal.connect(externalPositionModule.wallet).initializeModule();
+
+      await setTokenExternal.connect(externalPositionModule.wallet).addExternalPositionModule(
+        dai.address,
+        externalPositionModule.address
+      );
 
       uniswapSetup = await getUniswapFixture(owner.address);
       await uniswapSetup.initialize(owner, weth.address, wbtc.address, dai.address);
@@ -368,22 +386,7 @@ describe("ExchangeIssuance", async () => {
 
       context("when the set contains an external position", async () => {
         beforeEach(async () => {
-          subjectSetToApprove = await setV2Setup.createSetToken(
-            [setV2Setup.dai.address],
-            [ether(0.5)],
-            [setV2Setup.issuanceModule.address, setV2Setup.streamingFeeModule.address]
-          );
-          await setV2Setup.issuanceModule.initialize(subjectSetToApprove.address, ADDRESS_ZERO);
-
-          const controller = setV2Setup.controller;
-          await controller.addModule(externalPositionModule.address);
-          await subjectSetToApprove.addModule(externalPositionModule.address);
-          await subjectSetToApprove.connect(externalPositionModule.wallet).initializeModule();
-
-          await subjectSetToApprove.connect(externalPositionModule.wallet).addExternalPositionModule(
-            dai.address,
-            externalPositionModule.address
-          );
+          subjectSetToApprove = setTokenExternal;
         });
 
         it("should revert", async () => {
@@ -1391,6 +1394,16 @@ describe("ExchangeIssuance", async () => {
         );
       });
 
+      context("when set token has external positions", async () => {
+        beforeEach(async () => {
+          subjectSetToken = setTokenExternal;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED");
+        });
+      });
+
       context("when output erc20 token amount is insufficient", async () => {
         beforeEach(async () => {
           subjectMinTokenReceived = ether(100000);
@@ -1592,6 +1605,16 @@ describe("ExchangeIssuance", async () => {
           const actualSetOutput = await subject();
 
           expect(expectedSetOutput).to.eq(actualSetOutput);
+        });
+      });
+
+      context("when set contains an external component", async () => {
+        beforeEach(async () => {
+          subjectSetToken = setTokenExternal;
+        });
+
+        it("should revert", async () => {
+          await expect(subject()).to.be.revertedWith("ExchangeIssuance: EXTERNAL_POSITIONS_NOT_ALLOWED");
         });
       });
 
