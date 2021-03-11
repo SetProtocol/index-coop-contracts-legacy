@@ -29,6 +29,7 @@ import {
   getRedeemExactSetForETH,
 } from "@utils/common/exchangeIssuanceUtils";
 
+
 const expect = getWaffleExpect();
 
 
@@ -752,8 +753,8 @@ describe("ExchangeIssuance", async () => {
         subjectCaller = user;
         subjectSetToken = setToken;
         subjectInputToken = usdc;
-        subjectMaxAmountInput = UnitsUtils.usdc(1000);
-        subjectAmountSetToken = ether(5);
+        subjectMaxAmountInput = UnitsUtils.usdc(100);
+        subjectAmountSetToken = ether(0.1);
 
         await exchangeIssuance.approveSetToken(subjectSetToken.address, { gasPrice: 0 });
         await subjectInputToken.connect(subjectCaller.wallet).approve(exchangeIssuance.address, MAX_UINT_256, { gasPrice: 0 });
@@ -998,6 +999,7 @@ describe("ExchangeIssuance", async () => {
         });
       });
 
+
       context("when max input amount is 0", async () => {
         beforeEach(async () => {
           subjectMaxAmountInput = ZERO;
@@ -1122,6 +1124,27 @@ describe("ExchangeIssuance", async () => {
           expectedCost,
           subjectAmountSetToken
         );
+      });
+
+      context("when exact amount of token needed is supplied", () => {
+        beforeEach(async () => {
+          subjectAmountETHInput = await getIssueExactSetFromETH(
+            subjectSetToken,
+            subjectAmountSetToken,
+            uniswapRouter,
+            uniswapFactory,
+            sushiswapRouter,
+            sushiswapFactory,
+            weth.address
+          );
+        });
+
+        it("should not refund any eth", async () => {
+          await expect(subject()).to.emit(exchangeIssuance, "Refund").withArgs(
+            subjectCaller.address,
+            BigNumber.from(0)
+          );
+        });
       });
 
       context("when input ether amount is 0", async () => {

@@ -270,7 +270,7 @@ contract ExchangeIssuance is ReentrancyGuard {
         
         uint256 initETHAmount = address(_inputToken) == WETH
             ? _maxAmountInputToken
-            :  _swapTokenForWETH(_inputToken, _maxAmountInputToken);
+            : _swapTokenForWETH(_inputToken, _maxAmountInputToken);
         
         uint256 amountEthSpent = _issueExactSetFromWETH(_setToken, _amountSetToken, initETHAmount);
         
