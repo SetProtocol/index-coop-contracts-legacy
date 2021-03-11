@@ -98,7 +98,11 @@ export const getIssueExactSetFromToken = async (setToken: SetToken, inputToken: 
     const ethCost = await getIssueExactSetFromETH(setToken, amountSet, uniswapRouter, uniswapFactory, sushiswapRouter, sushiswapFactory, weth);
     if (inputToken.address === weth) return ethCost;
 
-    const tokenCost = (await uniswapRouter.getAmountsIn(ethCost, [inputToken.address, weth]))[0];
+    const hasUniPair = await hasPair(uniswapFactory, weth, inputToken.address);
+    const uniAmount = hasUniPair ? (await uniswapRouter.getAmountsIn(ethCost, [inputToken.address, weth]))[0] : MAX_UINT_256;
+    const hasSushiPair = await hasPair(sushiswapFactory, weth, inputToken.address);
+    const sushiAmount = hasSushiPair ? (await sushiswapRouter.getAmountsIn(ethCost, [inputToken.address, weth]))[0] : MAX_UINT_256;
+    const tokenCost = (uniAmount.lt(sushiAmount)) ? uniAmount : sushiAmount;
     return tokenCost;
 };
 

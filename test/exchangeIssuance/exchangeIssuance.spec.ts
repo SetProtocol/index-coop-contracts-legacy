@@ -920,6 +920,28 @@ describe("ExchangeIssuance", async () => {
             expectedRefund
           );
         });
+
+        context("when exact amount of token needed is supplied", () => {
+          beforeEach(async () => {
+            subjectMaxAmountInput = await getIssueExactSetFromToken(
+              subjectSetToken,
+              subjectInputToken,
+              subjectAmountSetToken,
+              uniswapRouter,
+              uniswapFactory,
+              sushiswapRouter,
+              sushiswapFactory,
+              weth.address
+            );
+          });
+
+          it("should not refund any eth", async () => {
+            await expect(subject()).to.emit(exchangeIssuance, "Refund").withArgs(
+              subjectCaller.address,
+              BigNumber.from(0)
+            );
+          });
+        });
       });
 
       context("when set contains weth", async () => {
@@ -1001,7 +1023,6 @@ describe("ExchangeIssuance", async () => {
           );
         });
       });
-
 
       context("when max input amount is 0", async () => {
         beforeEach(async () => {
@@ -1129,7 +1150,7 @@ describe("ExchangeIssuance", async () => {
         );
       });
 
-      context("when exact amount of token needed is supplied", () => {
+      context("when exact amount of eth needed is supplied", () => {
         beforeEach(async () => {
           subjectAmountETHInput = await getIssueExactSetFromETH(
             subjectSetToken,
