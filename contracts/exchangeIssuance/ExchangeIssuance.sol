@@ -81,14 +81,14 @@ contract ExchangeIssuance is ReentrancyGuard {
     event ExchangeRedeem(
         address indexed _recipient,     // The recipient address which redeemed the SetTokens
         ISetToken indexed _setToken,    // The redeemed SetToken
-        IERC20 indexed _outputToken,    // The addres of output asset(ERC20/ETH) received by the recipient
+        IERC20 indexed _outputToken,    // The address of output asset(ERC20/ETH) received by the recipient
         uint256 _amountSetRedeemed,     // The amount of SetTokens redeemed for output tokens
         uint256 _amountOutputToken      // The amount of output tokens received by the recipient
     );
 
     event Refund(
         address indexed _recipient,     // The recipient address which redeemed the SetTokens
-        uint256 _refundAmount           // The amount of ETH redunder by this transaction
+        uint256 _refundAmount           // The amount of ETH redunded to the recipient
     );
     
     /* ============ Modifiers ============ */
@@ -541,7 +541,7 @@ contract ExchangeIssuance is ReentrancyGuard {
     /* ============ Internal Functions ============ */
 
     /**
-     * Sets a max aproval limit for an ERC20 token, provided the current allowance 
+     * Sets a max approval limit for an ERC20 token, provided the current allowance 
      * is less than the required allownce. 
      * 
      * @param _token    Token to approve
