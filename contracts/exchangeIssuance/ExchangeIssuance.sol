@@ -663,7 +663,7 @@ contract ExchangeIssuance is ReentrancyGuard {
 
             // Get minimum amount of ETH to be spent to acquire the required amount of SetToken component
             uint256 unit = uint256(_setToken.getDefaultPositionRealUnit(_components[i]));
-            amountComponents[i] = uint256(unit).preciseMul(_amountSetToken);
+            amountComponents[i] = uint256(unit).preciseMulCeil(_amountSetToken);
             
             (amountEthIn[i], exchanges[i], pairAddresses[i]) = _getMinTokenForExactToken(amountComponents[i], WETH, _components[i]);
             sumEth = sumEth.add(amountEthIn[i]);

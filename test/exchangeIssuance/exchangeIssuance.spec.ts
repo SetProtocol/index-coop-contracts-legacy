@@ -57,7 +57,7 @@ describe("ExchangeIssuance", async () => {
     setV2Setup = getSetFixture(owner.address);
     await setV2Setup.initialize();
 
-    const daiUnits = ether(0.5);
+    const daiUnits = BigNumber.from("23252699054621733");
     const wbtcUnits = UnitsUtils.wbtc(1);
     setToken = await setV2Setup.createSetToken(
       [setV2Setup.dai.address, setV2Setup.wbtc.address],
@@ -1087,7 +1087,7 @@ describe("ExchangeIssuance", async () => {
       beforeEach(async () => {
         subjectCaller = user;
         subjectSetToken = setToken;
-        subjectAmountSetToken = ether(1000);
+        subjectAmountSetToken = ether(1000.3);
         subjectAmountETHInput = ether(10);
 
         await exchangeIssuance.approveSetToken(setToken.address);
@@ -1248,7 +1248,7 @@ describe("ExchangeIssuance", async () => {
       beforeEach(async () => {
         subjectCaller = user;
         subjectSetToken = setToken;
-        subjectAmountSetToken = ether(100);
+        subjectAmountSetToken = ether(100.3);
         subjectMinEthReceived = ether(0);
 
         await setV2Setup.approveAndIssueSetToken(subjectSetToken, subjectAmountSetToken, subjectCaller.address);
