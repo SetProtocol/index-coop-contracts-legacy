@@ -56,7 +56,7 @@ describe("ExchangeIssuance", async () => {
     setV2Setup = getSetFixture(owner.address);
     await setV2Setup.initialize();
 
-    const daiUnits = ether(0.5);
+    const daiUnits = BigNumber.from("23252699054621733");
     const wbtcUnits = UnitsUtils.wbtc(1);
     setToken = await setV2Setup.createSetToken(
       [setV2Setup.dai.address, setV2Setup.wbtc.address],
