@@ -1,7 +1,9 @@
 import { Signer } from "ethers";
 import { BigNumber, BigNumberish } from "@ethersproject/bignumber";
 import { Address } from "../types";
+import { convertLibraryNameToLinkId } from "../common";
 import {
+  Compound,
   CompoundLeverageModule,
   Controller,
   ComptrollerMock,
@@ -12,11 +14,13 @@ import {
   StreamingFeeModule,
   SetToken,
   SetTokenCreator,
-  SingleIndexModule
+  SingleIndexModule,
+  UniswapV2ExchangeAdapter,
 } from "../contracts/setV2";
 import { WETH9, StandardTokenMock } from "../contracts/index";
 import { ether } from "../common";
 import { Controller__factory } from "../../typechain/factories/Controller__factory";
+import { Compound__factory } from "../../typechain/factories/Compound__factory";
 import { CompoundLeverageModule__factory } from "../../typechain/factories/CompoundLeverageModule__factory";
 import { ComptrollerMock__factory } from "../../typechain/factories/ComptrollerMock__factory";
 import { ContractCallerMock__factory } from "../../typechain/factories/ContractCallerMock__factory";
@@ -28,6 +32,7 @@ import { StreamingFeeModule__factory } from "../../typechain/factories/Streaming
 import { SetToken__factory } from "../../typechain/factories/SetToken__factory";
 import { SetTokenCreator__factory } from "../../typechain/factories/SetTokenCreator__factory";
 import { StandardTokenMock__factory } from "../../typechain/factories/StandardTokenMock__factory";
+import { UniswapV2ExchangeAdapter__factory } from "../../typechain/factories/UniswapV2ExchangeAdapter__factory";
 import { WETH9__factory } from "../../typechain/factories/WETH9__factory";
 
 export default class DeploySetV2 {
@@ -43,6 +48,10 @@ export default class DeploySetV2 {
 
   public async deploySetTokenCreator(controller: Address): Promise<SetTokenCreator> {
     return await new SetTokenCreator__factory(this._deployerSigner).deploy(controller);
+  }
+
+  public async deployCompoundLib(): Promise<Compound> {
+    return await new Compound__factory(this._deployerSigner).deploy();
   }
 
   public async deploySetToken(
@@ -122,14 +131,32 @@ export default class DeploySetV2 {
     compToken: Address,
     comptroller: Address,
     cEther: Address,
-    weth: Address
+    weth: Address,
   ): Promise<CompoundLeverageModule> {
-    return await new CompoundLeverageModule__factory(this._deployerSigner).deploy(
+    const compoundLib = await this.deployCompoundLib();
+    const linkId = convertLibraryNameToLinkId("Compound");
+
+    return await new CompoundLeverageModule__factory(
+      // @ts-ignore
+      {
+        [linkId]: compoundLib.address,
+      },
+      // @ts-ignore
+      this._deployerSigner
+    ).deploy(
       controller,
       compToken,
       comptroller,
       cEther,
-      weth
+      weth,
+    );
+  }
+
+  public async deployUniswapV2ExchangeAdapter(
+    router: Address
+  ): Promise<UniswapV2ExchangeAdapter> {
+    return await new UniswapV2ExchangeAdapter__factory(this._deployerSigner).deploy(
+      router
     );
   }
 

@@ -11,12 +11,12 @@ export {
   preciseMul,
   preciseMulCeil,
   preciseMulCeilInt,
-  preciseDivCeilInt
+  preciseDivCeilInt,
+  sqrt
 } from "./mathUtils";
-export { ether, gWei, usdc, wbtc } from "./unitsUtils";
+export { ether, gWei, usdc } from "./unitsUtils";
 export { Blockchain } from "./blockchainUtils";
 export { ProtocolUtils } from "./protocolUtils";
-export { Uni } from "../../typechain/Uni";
-export { UniswapV2Factory } from "../../typechain/UniswapV2Factory";
-export { UniswapV2Pair } from "../../typechain/UniswapV2Pair";
-export { UniswapV2Router02 } from "../../typechain/UniswapV2Router02";
+export {
+  convertLibraryNameToLinkId
+} from "./libraryUtils";

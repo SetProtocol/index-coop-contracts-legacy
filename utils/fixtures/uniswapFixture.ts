@@ -2,11 +2,8 @@ import DeployHelper from "../deploys";
 import { Signer } from "ethers";
 import { JsonRpcProvider, Web3Provider } from "@ethersproject/providers";
 import { Address } from "../types";
-import { Account } from "@utils/test/types";
-import { BigNumber } from "@ethersproject/bignumber";
 
 import {
-  Uni,
   UniswapV2Factory,
   UniswapV2Pair,
   UniswapV2Router02
@@ -15,11 +12,9 @@ import { UniswapV2Pair__factory } from "../../typechain/factories/UniswapV2Pair_
 
 export class UniswapFixture {
   private _deployer: DeployHelper;
-  private _provider: Web3Provider | JsonRpcProvider;
   private _ownerSigner: Signer;
 
-  public owner: Account;
-  public uni: Uni;
+  public owner: Address;
   public factory: UniswapV2Factory;
   public pair: UniswapV2Pair;
   public router: UniswapV2Router02;
@@ -30,23 +25,16 @@ export class UniswapFixture {
 
   constructor(provider: Web3Provider | JsonRpcProvider, ownerAddress: Address) {
     this._ownerSigner = provider.getSigner(ownerAddress);
-    this._provider = provider;
     this._deployer = new DeployHelper(this._ownerSigner);
   }
 
-  public async initialize(_owner: Account, _weth: Address, _wbtc: Address, _dai: Address): Promise<void> {
+  public async initialize(_owner: Address, _weth: Address, _wbtc: Address, _usdc: Address): Promise<void> {
     this.owner = _owner;
-    this.factory = await this._deployer.external.deployUniswapV2Factory(this.owner.address);
+    this.factory = await this._deployer.external.deployUniswapV2Factory(this.owner);
     this.router = await this._deployer.external.deployUniswapV2Router02(this.factory.address, _weth);
 
-    const lastBlock = await this._provider.getBlock("latest");
-    this.uni = await this._deployer.external.deployUni(
-      this.owner.address,
-      this.owner.address,
-      BigNumber.from(lastBlock.timestamp).add(2)
-    );
-
-    this.uniWethPool = await this.createNewPair(_weth, this.uni.address);
+    this.wethDaiPool = await this.createNewPair(_weth, _usdc);
+    this.wethWbtcPool = await this.createNewPair(_weth, _wbtc);
   }
 
   public async createNewPair(_tokenOne: Address, _tokenTwo: Address): Promise<UniswapV2Pair> {

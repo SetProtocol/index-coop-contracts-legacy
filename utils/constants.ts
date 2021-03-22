@@ -12,6 +12,7 @@ export const MAX_UINT_96: BigNumber = BigNumber.from(2).pow(96).sub(1);
 export const ONE: BigNumber = One;
 export const TWO: BigNumber = Two;
 export const THREE = BigNumber.from(3);
+export const FOUR = BigNumber.from(4);
 export const ZERO: BigNumber = Zero;
 export const MAX_INT_256 = "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 export const MIN_INT_256 = "-0x8000000000000000000000000000000000000000000000000000000000000000";

@@ -25,6 +25,7 @@ export {
   getRandomAddress,
   increaseTimeAsync,
   mineBlockAsync,
+  cacheBeforeEach,
 } from "./test";
 
 export {
@@ -41,8 +42,8 @@ export {
   preciseMulCeil,
   preciseMulCeilInt,
   preciseDivCeilInt,
-  usdc,
-  wbtc,
+  sqrt,
+  usdc
 } from "./common";
 
 export {
@@ -54,5 +55,10 @@ export {
 export {
   calculateNewLeverageRatio,
   calculateCollateralRebalanceUnits,
-  calculateMaxBorrowForDelever
+  calculateMaxBorrowForDelever,
+  calculateMaxRedeemForDeleverToZero
 } from "./flexibleLeverageUtils";
+
+export {
+  setUniswapPoolToPrice
+} from "./externalProtocolUtils";
