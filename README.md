@@ -5,5 +5,11 @@
   <a href='https://coveralls.io/github/SetProtocol/index-coop-contracts?branch=master'><img src='https://coveralls.io/repos/github/SetProtocol/index-coop-contracts/badge.svg?branch=master&amp;t=4pzROZ' alt='Coverage Status' /></a>
 </p>
 
+# [DEPRECATED]
+
+This repo has moved to: [index-coop-smart-contracts][1]
+
+[1]: https://github.com/SetProtocol/index-coop-smart-contracts
+
 # index
 Repo housing contracts, deploys, and js library for INDEX
